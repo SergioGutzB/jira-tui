@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use log::error;
 use std::sync::Arc;
 
-use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase}; // Imported GetBacklogUseCase
+use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase};
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::client::JiraClient;
 use crate::ui::app::{Action, App, CurrentScreen};
@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 2. Use Cases
     let get_boards_uc = Arc::new(GetBoardsUseCase::new(repo.clone()));
-    let get_backlog_uc = Arc::new(GetBacklogUseCase::new(repo.clone())); // New instance
+    let get_backlog_uc = Arc::new(GetBacklogUseCase::new(repo.clone()));
 
     // 3. UI Init
     let mut app = App::new();
@@ -45,17 +45,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 match event {
                     Event::Key(key) => {
                         match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => {
-                                // Simple navigation logic: Esc goes back, or quits
+                            // GLOBAL QUIT
+                            KeyCode::Char('q') => {
+                                // If in detail or backlog, 'q' might mean quit app
+                                // or we can enforce 'Esc' to go back first.
+                                // For now, let's make 'q' always quit for speed.
+                                app.update(Action::Quit);
+                            }
+
+                            // NAVIGATION BACK
+                            KeyCode::Esc => {
                                 match app.current_screen {
+                                    CurrentScreen::IssueDetail => {
+                                        // Go back to list
+                                        app.current_screen = CurrentScreen::Backlog;
+                                        app.vertical_scroll = 0;
+                                    }
                                     CurrentScreen::Backlog => {
                                         app.update(Action::GoToBoards);
-                                    },
+                                    }
                                     _ => app.update(Action::Quit),
                                 }
                             }
+
+                            // LOAD BOARDS
                             KeyCode::Char('b') => {
-                                // Reload boards shortcut
                                 app.update(Action::LoadBoards);
                                 let uc = get_boards_uc.clone();
                                 let tx = action_tx.clone();
@@ -66,6 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     }
                                 });
                             }
+
+                            // SELECT / ENTER
                             KeyCode::Enter => {
                                 match app.current_screen {
                                     CurrentScreen::BoardsList => {
@@ -73,7 +89,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             let board_id = board.id;
                                             app.update(Action::LoadIssues(board_id));
 
-                                            // Spawn fetch issues task
                                             let uc = get_backlog_uc.clone();
                                             let tx = action_tx.clone();
                                             tokio::spawn(async move {
@@ -84,12 +99,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             });
                                         }
                                     }
-                                    // Future: Enter on Issue -> Show Details
+                                    CurrentScreen::Backlog => {
+                                        // View Issue Details
+                                        if !app.issues.is_empty() {
+                                            app.current_screen = CurrentScreen::IssueDetail;
+                                            app.vertical_scroll = 0;
+                                        }
+                                    }
                                     _ => {}
                                 }
                             }
+
+                            // SCROLL / MOVE
                             KeyCode::Down | KeyCode::Char('j') => app.update(Action::SelectNext),
                             KeyCode::Up | KeyCode::Char('k') => app.update(Action::SelectPrevious),
+
                             _ => {}
                         }
                     }
