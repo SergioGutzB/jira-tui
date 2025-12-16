@@ -3,20 +3,16 @@ use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
 };
 
+use crate::domain::models::IssueStatus;
 use crate::ui::app::{App, CurrentScreen};
 
-/// Renders the user interface based on the current application state.
 pub fn render(app: &App, frame: &mut Frame) {
-    // Split screen: Top bar (Title) and Main Body
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Length(3), // Title bar
-            Constraint::Min(1),    // Main content
-        ])
+        .constraints([Constraint::Length(3), Constraint::Min(1)])
         .split(frame.size());
 
     render_title(frame, chunks[0], app);
@@ -24,7 +20,11 @@ pub fn render(app: &App, frame: &mut Frame) {
 }
 
 fn render_title(frame: &mut Frame, area: Rect, app: &App) {
-    let title_text = format!(" Rust Jira TUI - Screen: {:?} ", app.current_screen);
+    let title_text = match app.current_screen {
+        CurrentScreen::BoardsList => " Select a Board (Up/Down + Enter) | 'q' to Quit ",
+        CurrentScreen::Backlog => " Backlog Issues (Up/Down) | 'b' to Back to Boards ",
+        _ => " Rust Jira TUI ",
+    };
 
     let block = Block::default()
         .borders(Borders::ALL)
@@ -42,8 +42,10 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
         CurrentScreen::Dashboard | CurrentScreen::BoardsList => {
             render_boards(frame, area, app);
         }
+        CurrentScreen::Backlog => {
+            render_backlog(frame, area, app);
+        }
         _ => {
-            // Placeholder for future screens
             let block = Block::default()
                 .borders(Borders::ALL)
                 .title(" Work in Progress ");
@@ -51,19 +53,8 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
         }
     }
 
-    // Overlay for loading state
     if app.is_loading {
-        let loading_block = Block::default()
-            .borders(Borders::ALL)
-            .style(Style::default().fg(Color::Yellow));
-        let loading_text = Paragraph::new(" Loading data from Jira... ")
-            .block(loading_block)
-            .alignment(ratatui::layout::Alignment::Center);
-
-        // Centered popup area
-        let popup_area = centered_rect(60, 20, area);
-        frame.render_widget(ratatui::widgets::Clear, popup_area); // Clear background
-        frame.render_widget(loading_text, popup_area);
+        render_loading(frame, area);
     }
 }
 
@@ -72,13 +63,15 @@ fn render_boards(frame: &mut Frame, area: Rect, app: &App) {
         .boards
         .iter()
         .map(|b| {
-            let content = format!(" {} | {} ({}) ", b.id, b.name, b.board_type);
-            ListItem::new(Line::from(content))
+            ListItem::new(Line::from(format!(
+                " {} | {} ({}) ",
+                b.id, b.name, b.board_type
+            )))
         })
         .collect();
 
     let title = if app.boards.is_empty() {
-        " Boards (No data or Press 'b' to load) "
+        " Boards (Press 'b' to load) "
     } else {
         " Boards "
     };
@@ -90,30 +83,75 @@ fn render_boards(frame: &mut Frame, area: Rect, app: &App) {
                 .bg(Color::Blue)
                 .fg(Color::White)
                 .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol(">> ");
+        );
 
-    // We use a predefined state here for simplicity in this step.
-    // In a full implementation, we would pass `&mut ListState`.
-    // For now, we manually simulate selection by recreating the widget logic or
-    // simpler: just render the list.
-    // *Note*: Ratatui lists require a `ListState` to render the selection.
-    // To keep `ui.rs` stateless (pure function), we should store `ListState` in `App`.
-    // However, to fix the compilation for this step without refactoring `App` too much,
-    // we will rely on visual feedback or add `ListState` later.
-
-    // Quick fix to show selection visually without ListState for this specific step:
-    // We will render it, but selection highlighting requires `frame.render_stateful_widget`.
-    // Let's do a basic render first.
-
-    // Create a temporary state for rendering the selection
-    let mut state = ratatui::widgets::ListState::default();
+    let mut state = ListState::default();
     state.select(Some(app.selected_board_index));
 
     frame.render_stateful_widget(list, area, &mut state);
 }
 
-/// Helper to center a rect (useful for popups)
+fn render_backlog(frame: &mut Frame, area: Rect, app: &App) {
+    let items: Vec<ListItem> = app
+        .issues
+        .iter()
+        .map(|i| {
+            // Color code the status
+            let status_style = match i.status {
+                IssueStatus::Todo => Style::default().fg(Color::Gray),
+                IssueStatus::InProgress => Style::default().fg(Color::Yellow),
+                IssueStatus::Done => Style::default().fg(Color::Green),
+                _ => Style::default().fg(Color::Magenta),
+            };
+
+            let status_str = format!("{:?}", i.status); // e.g., "InProgress"
+            let priority = i.priority.as_deref().unwrap_or("-");
+
+            // Format: PROJ-123 [Status] (Priority) Summary...
+            let content = Line::from(vec![
+                ratatui::text::Span::styled(
+                    format!("{:<10}", i.key),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                ratatui::text::Span::styled(format!("[{:<12}] ", status_str), status_style),
+                ratatui::text::Span::raw(format!("({:^8}) ", priority)),
+                ratatui::text::Span::raw(&i.summary),
+            ]);
+
+            ListItem::new(content)
+        })
+        .collect();
+
+    let title = " Backlog / Issues ";
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::ALL).title(title))
+        .highlight_style(
+            Style::default()
+                .bg(Color::DarkGray)
+                .fg(Color::White)
+                .add_modifier(Modifier::BOLD),
+        );
+
+    let mut state = ListState::default();
+    state.select(Some(app.selected_issue_index));
+
+    frame.render_stateful_widget(list, area, &mut state);
+}
+
+fn render_loading(frame: &mut Frame, area: Rect) {
+    let loading_block = Block::default()
+        .borders(Borders::ALL)
+        .style(Style::default().fg(Color::Yellow));
+    let loading_text = Paragraph::new(" Loading data from Jira... ")
+        .block(loading_block)
+        .alignment(ratatui::layout::Alignment::Center);
+
+    let popup_area = centered_rect(60, 20, area);
+    frame.render_widget(ratatui::widgets::Clear, popup_area);
+    frame.render_widget(loading_text, popup_area);
+}
+
 fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let popup_layout = Layout::default()
         .direction(Direction::Vertical)
