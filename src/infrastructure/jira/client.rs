@@ -10,10 +10,13 @@ use reqwest::{Client, StatusCode};
 pub struct JiraClient {
     client: Client,
     base_url: String,
+    // Guardamos credenciales para inyectarlas en cada request
+    email: String,
+    api_token: String,
 }
 
 impl JiraClient {
-    /// Creates a new instance of JiraClient with authenticated headers.
+    /// Creates a new instance of JiraClient.
     pub fn new(config: JiraConfig) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
@@ -21,15 +24,17 @@ impl JiraClient {
             reqwest::header::HeaderValue::from_static("application/json"),
         );
 
+        // Ya no configuramos basic_auth aquí, sino headers genéricos
         let client = Client::builder()
             .default_headers(headers)
-            .basic_auth(config.email, Some(config.api_token))
             .build()
             .map_err(|e| AppError::ConfigError(e.to_string()))?;
 
         Ok(Self {
             client,
             base_url: config.base_url.trim_end_matches('/').to_string(),
+            email: config.email,
+            api_token: config.api_token,
         })
     }
 }
@@ -39,9 +44,11 @@ impl JiraRepository for JiraClient {
     async fn get_boards(&self) -> Result<Vec<Board>> {
         let url = format!("{}/rest/agile/1.0/board", self.base_url);
 
+        // Aplicamos .basic_auth() aquí
         let response = self
             .client
             .get(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
             .send()
             .await
             .map_err(|e| AppError::ApiError(e.to_string()))?;
@@ -64,12 +71,13 @@ impl JiraRepository for JiraClient {
     }
 
     async fn get_issues_by_board(&self, board_id: BoardId) -> Result<Vec<Issue>> {
-        // Fetching backlog issues for the board
         let url = format!("{}/rest/agile/1.0/board/{}/issue", self.base_url, board_id);
 
+        // Aplicamos .basic_auth() aquí también
         let response = self
             .client
             .get(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
             .send()
             .await
             .map_err(|e| AppError::ApiError(e.to_string()))?;
@@ -95,12 +103,15 @@ impl JiraRepository for JiraClient {
     }
 
     async fn add_worklog(&self, _worklog: Worklog) -> Result<()> {
-        // Implementation postponed for later step
         Err(AppError::Unknown("Not implemented yet".to_string()))
     }
 
     async fn transition_issue(&self, _issue_key: &str, _transition_id: &str) -> Result<()> {
-        // Implementation postponed for later step
         Err(AppError::Unknown("Not implemented yet".to_string()))
     }
 }
+
+// El bloque de tests se mantiene igual al final del archivo...
+// (No es necesario que lo copies de nuevo si ya lo tienes,
+// pero recuerda que el test también usa JiraClient::new,
+// así que funcionará automáticamente con este cambio).

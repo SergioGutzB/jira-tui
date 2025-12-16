@@ -1,5 +1,5 @@
 use crate::domain::errors::Result;
-use crate::domain::models::{Board, BoardId, Issue, IssueId, Worklog};
+use crate::domain::models::{Board, BoardId, Issue, Worklog};
 use async_trait::async_trait;
 
 #[async_trait]
