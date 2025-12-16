@@ -1,22 +1,19 @@
 use crate::domain::errors::{AppError, Result};
-use crate::domain::models::{Board, BoardId, Issue, Worklog};
+use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Worklog};
 use crate::domain::repositories::JiraRepository;
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::dtos::{BoardResponseDto, IssueSearchResponseDto};
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 
-/// Concrete implementation of the JiraRepository using reqwest.
 pub struct JiraClient {
     client: Client,
     base_url: String,
-    // Guardamos credenciales para inyectarlas en cada request
     email: String,
     api_token: String,
 }
 
 impl JiraClient {
-    /// Creates a new instance of JiraClient.
     pub fn new(config: JiraConfig) -> Result<Self> {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
@@ -24,7 +21,6 @@ impl JiraClient {
             reqwest::header::HeaderValue::from_static("application/json"),
         );
 
-        // Ya no configuramos basic_auth aquí, sino headers genéricos
         let client = Client::builder()
             .default_headers(headers)
             .build()
@@ -42,9 +38,12 @@ impl JiraClient {
 #[async_trait]
 impl JiraRepository for JiraClient {
     async fn get_boards(&self) -> Result<Vec<Board>> {
-        let url = format!("{}/rest/agile/1.0/board", self.base_url);
+        // ... (Tu implementación de paginación de boards 'Fetch All' está bien aquí
+        // porque los boards suelen ser pocos, o podemos aplicar la misma lógica si tienes miles).
+        // Por simplicidad, mantengamos el loop anterior de boards o limítalo a 50.
+        // Aquí dejo la versión simple (paginada internamente o limitada) para no alargar:
 
-        // Aplicamos .basic_auth() aquí
+        let url = format!("{}/rest/agile/1.0/board?maxResults=100", self.base_url);
         let response = self
             .client
             .get(&url)
@@ -53,31 +52,73 @@ impl JiraRepository for JiraClient {
             .await
             .map_err(|e| AppError::ApiError(e.to_string()))?;
 
-        match response.status() {
-            StatusCode::OK => {
-                let dto: BoardResponseDto = response
-                    .json()
-                    .await
-                    .map_err(|e| AppError::ApiError(format!("Failed to parse boards: {}", e)))?;
-
-                Ok(dto.values.into_iter().map(Into::into).collect())
-            }
-            StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
-            _ => Err(AppError::ApiError(format!(
-                "Jira API Error: {}",
-                response.status()
-            ))),
+        if response.status() == StatusCode::OK {
+            let dto: BoardResponseDto = response
+                .json()
+                .await
+                .map_err(|e| AppError::ApiError(format!("Parse error: {}", e)))?;
+            Ok(dto.values.into_iter().map(Into::into).collect())
+        } else {
+            Err(AppError::ApiError(format!("Error: {}", response.status())))
         }
     }
 
-    async fn get_issues_by_board(&self, board_id: BoardId) -> Result<Vec<Issue>> {
+    async fn get_issues_by_board(
+        &self,
+        board_id: BoardId,
+        start_at: u64,
+        max_results: u64,
+        filter: IssueFilter,
+    ) -> Result<Vec<Issue>> {
+        // 1. Construct JQL
+        let mut jql_parts = Vec::new();
+
+        // By default, the board endpoint filters by the board context.
+        // We add extra filters.
+
+        if let Some(assignee) = &filter.assignee {
+            // "currentUser()" is a Jira function, handled directly.
+            // Other names might need quoting depending on spaces, but simple names work.
+            jql_parts.push(format!("assignee = {}", assignee));
+        }
+
+        if let Some(status) = &filter.status {
+            jql_parts.push(format!("status = \"{}\"", status));
+        }
+
+        // Combine filters with AND
+        let jql_query = if jql_parts.is_empty() {
+            String::new()
+        } else {
+            jql_parts.join(" AND ")
+        };
+
+        // Add Order By
+        let final_jql = if let Some(order) = &filter.order_by {
+            if jql_query.is_empty() {
+                format!("ORDER BY {}", order)
+            } else {
+                format!("{} ORDER BY {}", jql_query, order)
+            }
+        } else {
+            jql_query
+        };
+
+        // 2. Build URL
+        // Endpoint: /rest/agile/1.0/board/{boardId}/issue
+        // Params: startAt, maxResults, jql
         let url = format!("{}/rest/agile/1.0/board/{}/issue", self.base_url, board_id);
 
-        // Aplicamos .basic_auth() aquí también
+        // 3. Request
         let response = self
             .client
             .get(&url)
             .basic_auth(&self.email, Some(&self.api_token))
+            .query(&[
+                ("startAt", start_at.to_string()),
+                ("maxResults", max_results.to_string()),
+                ("jql", final_jql),
+            ])
             .send()
             .await
             .map_err(|e| AppError::ApiError(e.to_string()))?;
@@ -110,8 +151,3 @@ impl JiraRepository for JiraClient {
         Err(AppError::Unknown("Not implemented yet".to_string()))
     }
 }
-
-// El bloque de tests se mantiene igual al final del archivo...
-// (No es necesario que lo copies de nuevo si ya lo tienes,
-// pero recuerda que el test también usa JiraClient::new,
-// así que funcionará automáticamente con este cambio).

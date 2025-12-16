@@ -39,3 +39,25 @@ pub struct Worklog {
     pub comment: Option<String>,
     pub started_at: DateTime<Utc>,
 }
+
+/// Represents the search criteria for issues.
+#[derive(Debug, Clone, Default)]
+pub struct IssueFilter {
+    /// If Some, filters by this username. If "currentUser()", uses Jira's dynamic value.
+    pub assignee: Option<String>,
+    /// Filter by specific status name (e.g., "In Progress").
+    pub status: Option<String>,
+    /// JQL Order By clause. Default should be "updated DESC".
+    pub order_by: Option<String>,
+}
+
+impl IssueFilter {
+    /// Creates a default filter for the current user sorted by update time.
+    pub fn default_active_user() -> Self {
+        Self {
+            assignee: Some("currentUser()".to_string()),
+            status: None, // None means "All statuses"
+            order_by: Some("updated DESC".to_string()),
+        }
+    }
+}

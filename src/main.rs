@@ -9,6 +9,7 @@ use log::error;
 use std::sync::Arc;
 
 use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase};
+use crate::domain::models::IssueFilter;
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::client::JiraClient;
 use crate::ui::app::{Action, App, CurrentScreen};
@@ -87,12 +88,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     CurrentScreen::BoardsList => {
                                         if let Some(board) = app.get_selected_board() {
                                             let board_id = board.id;
+                                            // Reset pagination state in App (Visual)
                                             app.update(Action::LoadIssues(board_id));
 
                                             let uc = get_backlog_uc.clone();
                                             let tx = action_tx.clone();
+
+                                            // --- CONFIGURACIÓN DE PAGINACIÓN Y FILTROS ---
+                                            // Aquí definimos la "Primera Página"
+                                            let start_at = 0;
+                                            let max_results = 20;
+                                            let filter = IssueFilter::default_active_user();
+
                                             tokio::spawn(async move {
-                                                match uc.execute(board_id).await {
+                                                // Pasamos los 4 argumentos requeridos
+                                                match uc.execute(board_id, start_at, max_results, filter).await {
                                                     Ok(issues) => { let _ = tx.send(Action::IssuesLoaded(issues)); }
                                                     Err(e) => error!("Error loading issues: {}", e),
                                                 }
@@ -100,7 +110,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                         }
                                     }
                                     CurrentScreen::Backlog => {
-                                        // View Issue Details
                                         if !app.issues.is_empty() {
                                             app.current_screen = CurrentScreen::IssueDetail;
                                             app.vertical_scroll = 0;

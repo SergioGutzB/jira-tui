@@ -1,14 +1,16 @@
 use crate::domain::models::{Board, Issue, IssueStatus};
 use serde::Deserialize;
 
-/// Represents the raw response from Jira when querying for boards.
+// --- BOARDS ---
+
 #[derive(Deserialize)]
 pub struct BoardResponseDto {
-    /// List of values returned by the API.
+    pub maxResults: u64,
+    pub startAt: u64,
+    pub isLast: Option<bool>,
     pub values: Vec<BoardDto>,
 }
 
-/// Represents a single Board object from the Jira API.
 #[derive(Deserialize)]
 pub struct BoardDto {
     pub id: u64,
@@ -40,13 +42,16 @@ impl From<BoardDto> for Board {
     }
 }
 
-/// Represents the raw response for a JQL search or backlog.
+// --- ISSUES ---
+
 #[derive(Deserialize)]
 pub struct IssueSearchResponseDto {
+    pub startAt: u64,
+    pub maxResults: u64,
+    pub total: u64,
     pub issues: Vec<IssueDto>,
 }
 
-/// Represents the nested structure of a Jira Issue.
 #[derive(Deserialize)]
 pub struct IssueDto {
     pub key: String,
@@ -82,10 +87,11 @@ pub struct UserDto {
 
 impl From<IssueDto> for Issue {
     fn from(dto: IssueDto) -> Self {
+        // Mapeo básico de estados
         let status = match dto.fields.status.name.to_lowercase().as_str() {
-            "to do" | "new" => IssueStatus::Todo,
-            "in progress" => IssueStatus::InProgress,
-            "done" | "closed" => IssueStatus::Done,
+            "to do" | "new" | "open" => IssueStatus::Todo,
+            "in progress" | "in review" => IssueStatus::InProgress,
+            "done" | "closed" | "resolved" => IssueStatus::Done,
             _ => IssueStatus::Other(dto.fields.status.name),
         };
 
