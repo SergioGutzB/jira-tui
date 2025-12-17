@@ -6,7 +6,7 @@ mod ui;
 use dotenv::dotenv;
 use std::sync::Arc;
 
-use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase};
+use crate::application::use_cases::{AddWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase};
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::client::JiraClient;
 use crate::ui::app::{Action, App};
@@ -29,6 +29,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Use Cases
     let get_boards_uc = Arc::new(GetBoardsUseCase::new(repo.clone()));
     let get_backlog_uc = Arc::new(GetBacklogUseCase::new(repo.clone()));
+    let add_worklog_uc = Arc::new(AddWorklogUseCase::new(repo.clone()));
 
     // 3. UI Init
     let mut app = App::new();
@@ -59,6 +60,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 handlers::handle_filter_application(
                                     &app,
                                     get_backlog_uc.clone(),
+                                    action_tx.clone(),
+                                );
+                            }
+
+                            // Handle worklog submission
+                            if matches!(action, Action::SubmitWorklog) {
+                                handlers::handle_worklog_submission(
+                                    &app,
+                                    add_worklog_uc.clone(),
                                     action_tx.clone(),
                                 );
                             }

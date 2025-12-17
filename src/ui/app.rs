@@ -110,6 +110,10 @@ impl App {
             filter_status: StatusFilter::All,
             filter_order_by: OrderByFilter::UpdatedDesc,
             filter_focused_field: FilterField::Assignee,
+            worklog_hours: 0,
+            worklog_minutes: 0,
+            worklog_comment: String::new(),
+            worklog_focused_field: WorklogField::Hours,
         }
     }
 
@@ -253,6 +257,78 @@ impl App {
                     OrderByFilter::UpdatedDesc => OrderByFilter::CreatedDesc,
                     OrderByFilter::CreatedDesc => OrderByFilter::UpdatedDesc,
                 };
+            }
+
+            Action::OpenWorklogModal => {
+                self.previous_screen = Some(self.current_screen.clone());
+                self.current_screen = CurrentScreen::WorklogModal;
+                self.worklog_hours = 0;
+                self.worklog_minutes = 0;
+                self.worklog_comment.clear();
+                self.worklog_focused_field = WorklogField::Hours;
+            }
+
+            Action::CloseWorklogModal => {
+                if let Some(prev) = self.previous_screen.take() {
+                    self.current_screen = prev;
+                } else {
+                    self.current_screen = CurrentScreen::IssueDetail;
+                }
+            }
+
+            Action::NextWorklogField => {
+                self.worklog_focused_field = match self.worklog_focused_field {
+                    WorklogField::Hours => WorklogField::Minutes,
+                    WorklogField::Minutes => WorklogField::Comment,
+                    WorklogField::Comment => WorklogField::Hours,
+                };
+            }
+
+            Action::InputWorklogDigit(digit) => {
+                match self.worklog_focused_field {
+                    WorklogField::Hours => {
+                        let current = self.worklog_hours as u16;
+                        let new_value = current * 10 + digit.to_digit(10).unwrap_or(0) as u16;
+                        self.worklog_hours = new_value.min(99) as u8;
+                    }
+                    WorklogField::Minutes => {
+                        let current = self.worklog_minutes as u16;
+                        let new_value = current * 10 + digit.to_digit(10).unwrap_or(0) as u16;
+                        self.worklog_minutes = new_value.min(59) as u8;
+                    }
+                    WorklogField::Comment => {
+                        self.worklog_comment.push(digit);
+                    }
+                }
+            }
+
+            Action::InputWorklogChar(ch) => {
+                if matches!(self.worklog_focused_field, WorklogField::Comment) {
+                    self.worklog_comment.push(ch);
+                }
+            }
+
+            Action::DeleteWorklogChar => {
+                match self.worklog_focused_field {
+                    WorklogField::Hours => {
+                        self.worklog_hours /= 10;
+                    }
+                    WorklogField::Minutes => {
+                        self.worklog_minutes /= 10;
+                    }
+                    WorklogField::Comment => {
+                        self.worklog_comment.pop();
+                    }
+                }
+            }
+
+            Action::WorklogSubmitted => {
+                self.worklog_hours = 0;
+                self.worklog_minutes = 0;
+                self.worklog_comment.clear();
+                if let Some(prev) = self.previous_screen.take() {
+                    self.current_screen = prev;
+                }
             }
 
             _ => {}

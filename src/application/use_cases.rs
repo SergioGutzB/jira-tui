@@ -1,5 +1,5 @@
 use crate::domain::errors::Result;
-use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated};
+use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated, Worklog};
 use crate::domain::repositories::JiraRepository;
 use std::sync::Arc;
 
@@ -37,5 +37,19 @@ impl GetBacklogUseCase {
         self.repository
             .get_issues_by_board(board_id, start_at, max_results, filter)
             .await
+    }
+}
+
+pub struct AddWorklogUseCase {
+    repository: Arc<dyn JiraRepository>,
+}
+
+impl AddWorklogUseCase {
+    pub fn new(repository: Arc<dyn JiraRepository>) -> Self {
+        Self { repository }
+    }
+
+    pub async fn execute(&self, worklog: Worklog) -> Result<()> {
+        self.repository.add_worklog(worklog).await
     }
 }

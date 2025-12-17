@@ -24,9 +24,12 @@ fn render_title(frame: &mut Frame, area: Rect, app: &App) {
     let title_text = match app.current_screen {
         CurrentScreen::BoardsList => " Boards List | 'b' Load | Enter to Select | 'q' Quit ",
         CurrentScreen::Backlog => " Backlog | 'f' Filter | Enter View Details | 'b' Back ",
-        CurrentScreen::IssueDetail => " Issue Details | Scroll with Up/Down | Esc to Back ",
+        CurrentScreen::IssueDetail => " Issue Details | 'w' Log Time | Up/Down Scroll | Esc Back ",
         CurrentScreen::FilterModal => {
             " Filter Modal | Tab to Switch | Left/Right to Change | Enter to Apply "
+        }
+        CurrentScreen::WorklogModal => {
+            " Log Time | Tab Switch Field | Type to Edit | Enter Save | Esc Cancel "
         }
         _ => " Rust Jira TUI ",
     };
@@ -62,6 +65,15 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
                 }
             }
             widgets::filter_modal::render(frame, area, app);
+        }
+        CurrentScreen::WorklogModal => {
+            if let Some(prev_screen) = &app.previous_screen {
+                match prev_screen {
+                    CurrentScreen::IssueDetail => widgets::issue_detail::render(frame, area, app),
+                    _ => {}
+                }
+            }
+            widgets::worklog_modal::render(frame, area, app);
         }
         _ => {
             let block = Block::default()

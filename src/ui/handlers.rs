@@ -1,9 +1,10 @@
+use chrono::Utc;
 use log::error;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase};
-use crate::domain::models::IssueFilter;
+use crate::application::use_cases::{AddWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase};
+use crate::domain::models::{IssueFilter, Worklog};
 use crate::ui::app::{Action, App, CurrentScreen};
 
 /// Handles side effects for actions that require async network calls.
@@ -104,5 +105,41 @@ pub fn check_infinite_scroll(
                 }
             });
         }
+    }
+}
+
+/// Handles worklog submission by creating a Worklog and sending it to Jira.
+pub fn handle_worklog_submission(
+    app: &App,
+    add_worklog_uc: Arc<AddWorklogUseCase>,
+    tx: UnboundedSender<Action>,
+) {
+    if let Some(issue) = app.get_selected_issue() {
+        let total_seconds = (app.worklog_hours as u64 * 3600) + (app.worklog_minutes as u64 * 60);
+
+        if total_seconds == 0 {
+            error!("Cannot log 0 time");
+            return;
+        }
+
+        let worklog = Worklog {
+            issue_key: issue.key.clone(),
+            time_spent_seconds: total_seconds,
+            comment: if app.worklog_comment.is_empty() {
+                None
+            } else {
+                Some(app.worklog_comment.clone())
+            },
+            started_at: Utc::now(),
+        };
+
+        tokio::spawn(async move {
+            match add_worklog_uc.execute(worklog).await {
+                Ok(_) => {
+                    let _ = tx.send(Action::WorklogSubmitted);
+                }
+                Err(e) => error!("Error adding worklog: {}", e),
+            }
+        });
     }
 }

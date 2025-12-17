@@ -149,13 +149,31 @@ impl JiraRepository for JiraClient {
             self.base_url, worklog.issue_key
         );
 
-        let time_spent = format_time_spent(worklog.time_spent_seconds);
+        let started = worklog.started_at.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
 
-        let payload = serde_json::json!({
-            "timeSpent": time_spent,
-            "comment": worklog.comment.unwrap_or_default(),
-            "started": worklog.started_at.to_rfc3339(),
+        let mut payload = serde_json::json!({
+            "timeSpentSeconds": worklog.time_spent_seconds,
+            "started": started,
         });
+
+        if let Some(comment_text) = worklog.comment {
+            if !comment_text.is_empty() {
+                payload["comment"] = serde_json::json!({
+                    "type": "doc",
+                    "version": 1,
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{
+                            "type": "text",
+                            "text": comment_text
+                        }]
+                    }]
+                });
+            }
+        }
+
+        log::debug!("Worklog URL: {}", url);
+        log::debug!("Worklog payload: {}", serde_json::to_string_pretty(&payload).unwrap());
 
         let response = self
             .client
@@ -164,7 +182,7 @@ impl JiraRepository for JiraClient {
             .json(&payload)
             .send()
             .await
-            .map_err(|e| AppError::NetworkError(format!("Failed to add worklog: {}", e)))?;
+            .map_err(|e| AppError::ApiError(format!("Failed to add worklog: {}", e)))?;
 
         match response.status() {
             StatusCode::CREATED | StatusCode::OK => Ok(()),
