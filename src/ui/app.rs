@@ -1,4 +1,4 @@
-use crate::domain::models::{Board, Issue};
+use crate::domain::models::{Board, Issue, Paginated};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurrentScreen {
@@ -26,7 +26,9 @@ pub enum Action {
     LoadBoards,
     BoardsLoaded(Vec<Board>),
     LoadIssues(u64),
-    IssuesLoaded(Vec<Issue>),
+
+    IssuesLoaded(Paginated<Issue>),
+    LoadMoreIssues,
 }
 
 pub struct App {
@@ -43,6 +45,8 @@ pub struct App {
 
     // New: State for text scrolling in Detail view
     pub vertical_scroll: u16,
+    pub total_issues: u64,
+    pub current_board_id: Option<u64>,
 }
 
 impl App {
@@ -55,7 +59,9 @@ impl App {
             issues: Vec::new(),
             selected_issue_index: 0,
             is_loading: false,
-            vertical_scroll: 0, // Init
+            vertical_scroll: 0,
+            total_issues: 0,
+            current_board_id: None,
         }
     }
 
@@ -78,40 +84,60 @@ impl App {
                 self.vertical_scroll = 0;
             }
 
-            Action::LoadIssues(_) => {
+            Action::LoadIssues(board_id) => {
                 self.is_loading = true;
                 self.current_screen = CurrentScreen::Backlog;
-                self.issues.clear();
+                self.issues.clear(); // Limpiamos para nueva búsqueda
                 self.vertical_scroll = 0;
+                self.current_board_id = Some(board_id);
+                self.total_issues = 0;
             }
 
-            Action::IssuesLoaded(issues) => {
-                self.issues = issues;
-                self.selected_issue_index = 0;
+            Action::IssuesLoaded(paginated) => {
                 self.is_loading = false;
                 self.current_screen = CurrentScreen::Backlog;
-                self.vertical_scroll = 0;
+
+                // Si start_at es 0, es una búsqueda nueva. Si no, es un append.
+                if paginated.start_at == 0 {
+                    self.issues = paginated.items;
+                    self.selected_issue_index = 0;
+                } else {
+                    self.issues.extend(paginated.items);
+                }
+
+                self.total_issues = paginated.total;
             }
 
             Action::SelectNext => {
                 match self.current_screen {
-                    CurrentScreen::BoardsList => {
-                        if !self.boards.is_empty() {
-                            let next = self.selected_board_index.saturating_add(1);
-                            if next < self.boards.len() {
-                                self.selected_board_index = next;
-                            }
-                        }
-                    }
+                    // ... Boards ...
                     CurrentScreen::Backlog => {
                         if !self.issues.is_empty() {
                             let next = self.selected_issue_index.saturating_add(1);
                             if next < self.issues.len() {
                                 self.selected_issue_index = next;
                             }
+                            // AUTO-PAGINACIÓN:
+                            // Si llegamos al final Y tenemos menos items que el total, cargamos más.
+                            // Trigger un poco antes del final (ej. 2 items antes) para suavidad.
+                            if self.issues.len() < self.total_issues as usize
+                                && self.selected_issue_index >= self.issues.len() - 2
+                                && !self.is_loading
+                            {
+                                // Aquí no podemos despachar acción asíncrona directamente,
+                                // así que marcamos loading o usamos un flag.
+                                // Una estrategia común en TUI simple es retornar un "Effect"
+                                // o que el main loop detecte esto.
+                                // Para simplificar, usaremos un truco en el Main Loop.
+                            }
                         }
                     }
-                    // Scroll Down in Detail View
+                    // ...
+                    _ => {}
+                }
+                // Repetir lógica de Boards/Details...
+                match self.current_screen {
+                    CurrentScreen::BoardsList => { /* ... */ }
                     CurrentScreen::IssueDetail => {
                         self.vertical_scroll = self.vertical_scroll.saturating_add(1);
                     }

@@ -1,5 +1,5 @@
 use crate::domain::errors::Result;
-use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Worklog};
+use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated, Worklog};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -19,7 +19,7 @@ pub trait JiraRepository: Send + Sync {
         start_at: u64,
         max_results: u64,
         filter: IssueFilter,
-    ) -> Result<Vec<Issue>>;
+    ) -> Result<Paginated<Issue>>;
 
     async fn add_worklog(&self, worklog: Worklog) -> Result<()>;
     async fn transition_issue(&self, issue_key: &str, transition_id: &str) -> Result<()>;

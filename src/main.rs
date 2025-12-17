@@ -88,40 +88,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     CurrentScreen::BoardsList => {
                                         if let Some(board) = app.get_selected_board() {
                                             let board_id = board.id;
-                                            // Reset pagination state in App (Visual)
                                             app.update(Action::LoadIssues(board_id));
 
                                             let uc = get_backlog_uc.clone();
                                             let tx = action_tx.clone();
 
-                                            // --- CONFIGURACIÓN DE PAGINACIÓN Y FILTROS ---
-                                            // Aquí definimos la "Primera Página"
-                                            let start_at = 0;
-                                            let max_results = 20;
-                                            let filter = IssueFilter::default_active_user();
-
+                                            // Primera página
                                             tokio::spawn(async move {
-                                                // Pasamos los 4 argumentos requeridos
-                                                match uc.execute(board_id, start_at, max_results, filter).await {
-                                                    Ok(issues) => { let _ = tx.send(Action::IssuesLoaded(issues)); }
-                                                    Err(e) => error!("Error loading issues: {}", e),
+                                                let filter = IssueFilter::default_active_user();
+                                                match uc.execute(board_id, 0, 20, filter).await {
+                                                    Ok(p) => { let _ = tx.send(Action::IssuesLoaded(p)); }
+                                                    Err(e) => error!("Error: {}", e),
                                                 }
                                             });
                                         }
                                     }
-                                    CurrentScreen::Backlog => {
-                                        if !app.issues.is_empty() {
-                                            app.current_screen = CurrentScreen::IssueDetail;
-                                            app.vertical_scroll = 0;
-                                        }
-                                    }
+                                    // ...
                                     _ => {}
                                 }
                             }
 
                             // SCROLL / MOVE
-                            KeyCode::Down | KeyCode::Char('j') => app.update(Action::SelectNext),
                             KeyCode::Up | KeyCode::Char('k') => app.update(Action::SelectPrevious),
+
+                            KeyCode::Down | KeyCode::Char('j') => {
+                                app.update(Action::SelectNext);
+
+                                // Detectar si necesitamos cargar más
+                                if app.current_screen == CurrentScreen::Backlog
+                                   && !app.is_loading
+                                   && app.issues.len() < app.total_issues as usize
+                                   && app.selected_issue_index >= app.issues.len().saturating_sub(2)
+                                {
+                                    if let Some(board_id) = app.current_board_id {
+                                        let start_at = app.issues.len() as u64;
+                                        app.is_loading = true; // Feedback visual inmediato
+
+                                        let uc = get_backlog_uc.clone();
+                                        let tx = action_tx.clone();
+
+                                        tokio::spawn(async move {
+                                            let filter = IssueFilter::default_active_user();
+                                            // Pide los siguientes 20
+                                            match uc.execute(board_id, start_at, 20, filter).await {
+                                                Ok(p) => { let _ = tx.send(Action::IssuesLoaded(p)); }
+                                                Err(e) => error!("Pagination Error: {}", e),
+                                            }
+                                        });
+                                    }
+                                }
+                            }
 
                             _ => {}
                         }

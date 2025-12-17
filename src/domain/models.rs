@@ -61,3 +61,22 @@ impl IssueFilter {
         }
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct Paginated<T> {
+    pub items: Vec<T>,
+    pub total: u64,
+    pub start_at: u64,
+    pub max_results: u64,
+}
+
+impl<T> Paginated<T> {
+    pub fn new(items: Vec<T>, total: u64, start_at: u64, max_results: u64) -> Self {
+        Self {
+            items,
+            total,
+            start_at,
+            max_results,
+        }
+    }
+}
