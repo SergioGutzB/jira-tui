@@ -200,7 +200,7 @@ impl App {
             Action::LoadIssues(board_id) => {
                 self.is_loading = true;
                 self.current_screen = CurrentScreen::Backlog;
-                self.issues.clear(); // Limpiamos para nueva búsqueda
+                self.issues.clear(); // Clear for new search
                 self.vertical_scroll = 0;
                 self.current_board_id = Some(board_id);
                 self.total_issues = 0;

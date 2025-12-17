@@ -18,7 +18,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     let popup_block = Block::default()
         .borders(Borders::ALL)
-        .title(" Registrar Tiempo ")
+        .title(" Log Time ")
         .style(Style::default().fg(Color::Cyan));
 
     let inner_area = popup_block.inner(popup_area);
@@ -27,16 +27,16 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3), // Fecha
-            Constraint::Length(3), // Hora
-            Constraint::Length(3), // Tiempo trabajado
-            Constraint::Length(5), // Comentario
+            Constraint::Length(3), // Date
+            Constraint::Length(3), // Time
+            Constraint::Length(3), // Time spent
+            Constraint::Length(5), // Comment
             Constraint::Length(1),
             Constraint::Length(3), // Help
         ])
         .split(inner_area);
 
-    // Fecha
+    // Date
     let date_focused = matches!(
         app.worklog_focused_field,
         WorklogField::Day | WorklogField::Month | WorklogField::Year
@@ -70,7 +70,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     };
 
     let date_text = Line::from(vec![
-        Span::raw(" Fecha: "),
+        Span::raw(" Date: "),
         Span::styled(format!("{:02}", app.worklog_day), day_style),
         Span::raw(" / "),
         Span::styled(format!("{:02}", app.worklog_month), month_style),
@@ -81,13 +81,13 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let date_block = Paragraph::new(date_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Fecha (DD/MM/YYYY) ")
+            .title(" Date (DD/MM/YYYY) ")
             .border_style(Style::default().fg(date_border_color)),
     );
 
     frame.render_widget(date_block, chunks[0]);
 
-    // Hora
+    // Time
     let time_focused = matches!(
         app.worklog_focused_field,
         WorklogField::Hour | WorklogField::Minute
@@ -114,7 +114,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     };
 
     let time_text = Line::from(vec![
-        Span::raw(" Hora: "),
+        Span::raw(" Time: "),
         Span::styled(format!("{:02}", app.worklog_hour), hour_style),
         Span::raw(" : "),
         Span::styled(format!("{:02}", app.worklog_minute), minute_style),
@@ -123,13 +123,13 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let time_block = Paragraph::new(time_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Hora (HH:MM) ")
+            .title(" Time (HH:MM) ")
             .border_style(Style::default().fg(time_border_color)),
     );
 
     frame.render_widget(time_block, chunks[1]);
 
-    // Tiempo trabajado
+    // Time spent
     let duration_focused = matches!(
         app.worklog_focused_field,
         WorklogField::TimeHours | WorklogField::TimeMinutes
@@ -156,7 +156,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     };
 
     let duration_text = Line::from(vec![
-        Span::raw(" Tiempo: "),
+        Span::raw(" Time: "),
         Span::styled(format!("{}", app.worklog_time_hours), time_hours_style),
         Span::raw(" h "),
         Span::styled(format!("{}", app.worklog_time_minutes), time_minutes_style),
@@ -166,13 +166,13 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let duration_block = Paragraph::new(duration_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Tiempo Trabajado ")
+            .title(" Time Spent ")
             .border_style(Style::default().fg(duration_border_color)),
     );
 
     frame.render_widget(duration_block, chunks[2]);
 
-    // Comentario
+    // Comment
     let comment_focused = app.worklog_focused_field == WorklogField::Comment;
     let comment_border_color = if comment_focused {
         Color::Yellow
@@ -182,7 +182,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     let comment_text = if app.worklog_comment.is_empty() {
         Line::from(vec![Span::styled(
-            " (Opcional) Descripción del trabajo...",
+            " (Optional) Work description...",
             Style::default().fg(Color::DarkGray),
         )])
     } else {
@@ -192,14 +192,14 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     let comment_block = Paragraph::new(comment_text).block(
         Block::default()
             .borders(Borders::ALL)
-            .title(" Comentario ")
+            .title(" Comment ")
             .border_style(Style::default().fg(comment_border_color)),
     );
 
     frame.render_widget(comment_block, chunks[3]);
 
     let help_text = Paragraph::new(
-        " Tab/j/k: Cambiar campo | 0-9: Editar | Backspace: Borrar | Enter: Guardar | Esc: Cancelar ",
+        " Tab/j/k: Switch field | 0-9: Edit | Backspace: Delete | Enter: Save | Esc: Cancel ",
     )
     .style(Style::default().fg(Color::DarkGray))
     .alignment(Alignment::Center);

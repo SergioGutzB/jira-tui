@@ -30,13 +30,13 @@ pub fn render(frame: &mut Frame, area: Rect, app: &App) {
 fn render_title(frame: &mut Frame, area: Rect, app: &App) {
     let title = if let Some(issue) = app.get_selected_issue() {
         format!(
-            " Tiempos Registrados - {} ({}/{}) ",
+            " Logged Time - {} ({}/{}) ",
             issue.key,
             app.worklogs.len(),
             app.total_worklogs
         )
     } else {
-        " Tiempos Registrados ".to_string()
+        " Logged Time ".to_string()
     };
 
     let block = Block::default().borders(Borders::ALL).title(title).style(
@@ -50,7 +50,7 @@ fn render_title(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
     if app.worklogs.is_empty() {
-        let empty_msg = Paragraph::new("No hay tiempos registrados")
+        let empty_msg = Paragraph::new("No logged time entries")
             .block(Block::default().borders(Borders::ALL))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::DarkGray));
@@ -58,7 +58,7 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
         return;
     }
 
-    let header = Row::new(vec!["Fecha/Hora", "Duración", "Autor", "Comentario"])
+    let header = Row::new(vec!["Date/Time", "Duration", "Author", "Comment"])
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -115,15 +115,15 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
         .collect();
 
     let widths = [
-        Constraint::Length(16),     // Fecha/Hora
-        Constraint::Length(10),     // Duración
-        Constraint::Min(15),        // Autor (adaptive)
-        Constraint::Percentage(50), // Comentario (takes remaining space)
+        Constraint::Length(16),     // Date/Time
+        Constraint::Length(10),     // Duration
+        Constraint::Min(15),        // Author (adaptive)
+        Constraint::Percentage(50), // Comment (takes remaining space)
     ];
 
     let table = Table::new(rows, widths)
         .header(header)
-        .block(Block::default().borders(Borders::ALL).title(" Listado "))
+        .block(Block::default().borders(Borders::ALL).title(" List "))
         .column_spacing(2);
 
     frame.render_widget(table, area);
@@ -131,7 +131,7 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
 
 fn render_instructions(frame: &mut Frame, area: Rect) {
     let instructions =
-        Paragraph::new(" ↑/↓ o j/k: Navegar | Enter o 'e': Editar | 'd': Eliminar | Esc: Cerrar ")
+        Paragraph::new(" ↑/↓ or j/k: Navigate | Enter or 'e': Edit | 'd': Delete | Esc: Close ")
             .block(Block::default().borders(Borders::ALL))
             .alignment(Alignment::Center)
             .style(Style::default().fg(Color::Gray));

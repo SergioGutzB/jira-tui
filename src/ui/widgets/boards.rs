@@ -21,7 +21,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         return;
     }
 
-    let header = Row::new(vec!["ID", "Nombre", "Proyecto", "Tipo"])
+    let header = Row::new(vec!["ID", "Name", "Project", "Type"])
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -45,9 +45,9 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     let widths = [
         Constraint::Length(8),      // ID
-        Constraint::Percentage(40), // Nombre
-        Constraint::Length(12),     // Proyecto
-        Constraint::Min(15),        // Tipo
+        Constraint::Percentage(40), // Name
+        Constraint::Length(12),     // Project
+        Constraint::Min(15),        // Type
     ];
 
     let table = Table::new(rows, widths)

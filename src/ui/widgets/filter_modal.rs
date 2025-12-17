@@ -18,7 +18,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     let popup_block = Block::default()
         .borders(Borders::ALL)
-        .title(" Configurar Filtros ")
+        .title(" Configure Filters ")
         .style(Style::default().fg(Color::Cyan));
 
     let inner_area = popup_block.inner(popup_area);
@@ -64,7 +64,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     };
 
     let assignee_text = Line::from(vec![
-        Span::raw(" Asignado a: "),
+        Span::raw(" Assigned to: "),
         Span::styled(
             format!("< {} >", app.filter_assignee.label()),
             assignee_style,
@@ -72,32 +72,32 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     ]);
 
     let assignee_block = Paragraph::new(assignee_text)
-        .block(Block::default().borders(Borders::ALL).title(" Asignado "));
+        .block(Block::default().borders(Borders::ALL).title(" Assignee "));
 
     frame.render_widget(assignee_block, chunks[0]);
 
     let status_text = Line::from(vec![
-        Span::raw(" Estado: "),
+        Span::raw(" Status: "),
         Span::styled(format!("< {} >", app.filter_status.label()), status_style),
     ]);
 
     let status_block =
-        Paragraph::new(status_text).block(Block::default().borders(Borders::ALL).title(" Estado "));
+        Paragraph::new(status_text).block(Block::default().borders(Borders::ALL).title(" Status "));
 
     frame.render_widget(status_block, chunks[1]);
 
     let order_text = Line::from(vec![
-        Span::raw(" Ordenar por: "),
+        Span::raw(" Order by: "),
         Span::styled(format!("< {} >", app.filter_order_by.label()), order_style),
     ]);
 
     let order_block =
-        Paragraph::new(order_text).block(Block::default().borders(Borders::ALL).title(" Orden "));
+        Paragraph::new(order_text).block(Block::default().borders(Borders::ALL).title(" Order "));
 
     frame.render_widget(order_block, chunks[2]);
 
     let help_text = Paragraph::new(
-        " Tab/j/k: Cambiar campo | h/l/←/→: Cambiar valor | Enter: Aplicar | Esc: Cancelar ",
+        " Tab/j/k: Switch field | h/l/←/→: Change value | Enter: Apply | Esc: Cancel ",
     )
     .style(Style::default().fg(Color::DarkGray))
     .alignment(Alignment::Center);

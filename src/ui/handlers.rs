@@ -156,8 +156,8 @@ pub fn handle_worklog_submission(
             match add_worklog_uc.execute(worklog).await {
                 Ok(_) => {
                     let _ = tx.send(Action::ShowNotification(
-                        "✅ Éxito".to_string(),
-                        "Tiempo registrado correctamente".to_string(),
+                        "✅ Success".to_string(),
+                        "Time logged successfully".to_string(),
                         true,
                     ));
                     let _ = tx.send(Action::WorklogSubmitted);
@@ -172,7 +172,7 @@ pub fn handle_worklog_submission(
                 Err(e) => {
                     let _ = tx.send(Action::ShowNotification(
                         "❌ Error".to_string(),
-                        format!("Error al registrar tiempo: {}", e),
+                        format!("Failed to log time: {}", e),
                         false,
                     ));
                     error!("Error adding worklog: {}", e);
@@ -204,7 +204,7 @@ pub fn handle_load_worklogs(
             Err(e) => {
                 let _ = tx.send(Action::ShowNotification(
                     "❌ Error".to_string(),
-                    format!("Error al cargar tiempos: {}", e),
+                    format!("Failed to load time entries: {}", e),
                     false,
                 ));
                 error!("Error loading worklogs: {}", e);
@@ -268,8 +268,8 @@ pub fn handle_update_worklog(
             {
                 Ok(_) => {
                     let _ = tx.send(Action::ShowNotification(
-                        "✅ Éxito".to_string(),
-                        "Tiempo actualizado correctamente".to_string(),
+                        "✅ Success".to_string(),
+                        "Time entry updated successfully".to_string(),
                         true,
                     ));
                     let _ = tx.send(Action::WorklogUpdated);
@@ -292,7 +292,7 @@ pub fn handle_update_worklog(
                 Err(e) => {
                     let _ = tx.send(Action::ShowNotification(
                         "❌ Error".to_string(),
-                        format!("Error al actualizar tiempo: {}", e),
+                        format!("Failed to update time entry: {}", e),
                         false,
                     ));
                     error!("Error updating worklog: {}", e);
@@ -325,8 +325,8 @@ pub fn handle_delete_worklog(
             match delete_worklog_uc.execute(&issue_key, &worklog_id).await {
                 Ok(_) => {
                     let _ = tx.send(Action::ShowNotification(
-                        "✅ Éxito".to_string(),
-                        "Tiempo eliminado correctamente".to_string(),
+                        "✅ Success".to_string(),
+                        "Time entry deleted successfully".to_string(),
                         true,
                     ));
                     let _ = tx.send(Action::WorklogDeleted);
@@ -349,7 +349,7 @@ pub fn handle_delete_worklog(
                 Err(e) => {
                     let _ = tx.send(Action::ShowNotification(
                         "❌ Error".to_string(),
-                        format!("Error al eliminar tiempo: {}", e),
+                        format!("Failed to delete time entry: {}", e),
                         false,
                     ));
                     error!("Error deleting worklog: {}", e);
