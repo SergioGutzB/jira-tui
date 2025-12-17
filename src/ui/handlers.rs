@@ -1,4 +1,4 @@
-use chrono::Utc;
+use chrono::{Utc, TimeZone, Local};
 use log::error;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -115,12 +115,27 @@ pub fn handle_worklog_submission(
     tx: UnboundedSender<Action>,
 ) {
     if let Some(issue) = app.get_selected_issue() {
-        let total_seconds = (app.worklog_hours as u64 * 3600) + (app.worklog_minutes as u64 * 60);
+        let total_seconds = (app.worklog_time_hours as u64 * 3600) + (app.worklog_time_minutes as u64 * 60);
 
         if total_seconds == 0 {
             error!("Cannot log 0 time");
             return;
         }
+
+        let started_at = match Local.with_ymd_and_hms(
+            app.worklog_year as i32,
+            app.worklog_month as u32,
+            app.worklog_day as u32,
+            app.worklog_hour as u32,
+            app.worklog_minute as u32,
+            0,
+        ) {
+            chrono::LocalResult::Single(dt) => dt.with_timezone(&Utc),
+            _ => {
+                error!("Invalid date/time");
+                return;
+            }
+        };
 
         let worklog = Worklog {
             issue_key: issue.key.clone(),
@@ -130,15 +145,42 @@ pub fn handle_worklog_submission(
             } else {
                 Some(app.worklog_comment.clone())
             },
-            started_at: Utc::now(),
+            started_at,
         };
 
+        let tx_clone = tx.clone();
         tokio::spawn(async move {
             match add_worklog_uc.execute(worklog).await {
                 Ok(_) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "✅ Éxito".to_string(),
+                        "Tiempo registrado correctamente".to_string(),
+                        true,
+                    ));
                     let _ = tx.send(Action::WorklogSubmitted);
+
+                    // Auto-dismiss notification after 3 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
                 }
-                Err(e) => error!("Error adding worklog: {}", e),
+                Err(e) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "❌ Error".to_string(),
+                        format!("Error al registrar tiempo: {}", e),
+                        false,
+                    ));
+                    error!("Error adding worklog: {}", e);
+
+                    // Auto-dismiss error notification after 5 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
+                }
             }
         });
     }

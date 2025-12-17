@@ -102,7 +102,9 @@ fn match_worklog_modal_keys(key: KeyEvent, app: &App) -> Option<Action> {
         KeyCode::Char(ch) if ch.is_ascii_digit() => {
             if matches!(
                 app.worklog_focused_field,
-                WorklogField::Hours | WorklogField::Minutes
+                WorklogField::Day | WorklogField::Month | WorklogField::Year |
+                WorklogField::Hour | WorklogField::Minute |
+                WorklogField::TimeHours | WorklogField::TimeMinutes
             ) {
                 Some(Action::InputWorklogDigit(ch))
             } else {

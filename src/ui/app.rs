@@ -1,4 +1,5 @@
 use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter};
+use chrono::{Local, Datelike, Timelike};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurrentScreen {
@@ -22,8 +23,13 @@ pub enum FilterField {
 /// Represents which field is currently focused in the worklog modal
 #[derive(Debug, Clone, PartialEq)]
 pub enum WorklogField {
-    Hours,
-    Minutes,
+    Day,
+    Month,
+    Year,
+    Hour,
+    Minute,
+    TimeHours,
+    TimeMinutes,
     Comment,
 }
 
@@ -62,6 +68,9 @@ pub enum Action {
     DeleteWorklogChar,
     SubmitWorklog,
     WorklogSubmitted,
+
+    ShowNotification(String, String, bool),
+    HideNotification,
 }
 
 pub struct App {
@@ -86,14 +95,24 @@ pub struct App {
     pub filter_order_by: OrderByFilter,
     pub filter_focused_field: FilterField,
 
-    pub worklog_hours: u8,
-    pub worklog_minutes: u8,
+    pub worklog_day: u8,
+    pub worklog_month: u8,
+    pub worklog_year: u16,
+    pub worklog_hour: u8,
+    pub worklog_minute: u8,
+    pub worklog_time_hours: u8,
+    pub worklog_time_minutes: u8,
     pub worklog_comment: String,
     pub worklog_focused_field: WorklogField,
+
+    pub notification_title: Option<String>,
+    pub notification_message: Option<String>,
+    pub notification_is_success: bool,
 }
 
 impl App {
     pub fn new() -> Self {
+        let now = Local::now();
         Self {
             should_quit: false,
             current_screen: CurrentScreen::Dashboard,
@@ -110,10 +129,18 @@ impl App {
             filter_status: StatusFilter::All,
             filter_order_by: OrderByFilter::UpdatedDesc,
             filter_focused_field: FilterField::Assignee,
-            worklog_hours: 0,
-            worklog_minutes: 0,
+            worklog_day: now.day() as u8,
+            worklog_month: now.month() as u8,
+            worklog_year: now.year() as u16,
+            worklog_hour: now.hour() as u8,
+            worklog_minute: now.minute() as u8,
+            worklog_time_hours: 0,
+            worklog_time_minutes: 0,
             worklog_comment: String::new(),
-            worklog_focused_field: WorklogField::Hours,
+            worklog_focused_field: WorklogField::Day,
+            notification_title: None,
+            notification_message: None,
+            notification_is_success: false,
         }
     }
 
@@ -260,12 +287,18 @@ impl App {
             }
 
             Action::OpenWorklogModal => {
+                let now = Local::now();
                 self.previous_screen = Some(self.current_screen.clone());
                 self.current_screen = CurrentScreen::WorklogModal;
-                self.worklog_hours = 0;
-                self.worklog_minutes = 0;
+                self.worklog_day = now.day() as u8;
+                self.worklog_month = now.month() as u8;
+                self.worklog_year = now.year() as u16;
+                self.worklog_hour = now.hour() as u8;
+                self.worklog_minute = now.minute() as u8;
+                self.worklog_time_hours = 0;
+                self.worklog_time_minutes = 0;
                 self.worklog_comment.clear();
-                self.worklog_focused_field = WorklogField::Hours;
+                self.worklog_focused_field = WorklogField::Day;
             }
 
             Action::CloseWorklogModal => {
@@ -278,23 +311,47 @@ impl App {
 
             Action::NextWorklogField => {
                 self.worklog_focused_field = match self.worklog_focused_field {
-                    WorklogField::Hours => WorklogField::Minutes,
-                    WorklogField::Minutes => WorklogField::Comment,
-                    WorklogField::Comment => WorklogField::Hours,
+                    WorklogField::Day => WorklogField::Month,
+                    WorklogField::Month => WorklogField::Year,
+                    WorklogField::Year => WorklogField::Hour,
+                    WorklogField::Hour => WorklogField::Minute,
+                    WorklogField::Minute => WorklogField::TimeHours,
+                    WorklogField::TimeHours => WorklogField::TimeMinutes,
+                    WorklogField::TimeMinutes => WorklogField::Comment,
+                    WorklogField::Comment => WorklogField::Day,
                 };
             }
 
             Action::InputWorklogDigit(digit) => {
+                let digit_val = digit.to_digit(10).unwrap_or(0);
                 match self.worklog_focused_field {
-                    WorklogField::Hours => {
-                        let current = self.worklog_hours as u16;
-                        let new_value = current * 10 + digit.to_digit(10).unwrap_or(0) as u16;
-                        self.worklog_hours = new_value.min(99) as u8;
+                    WorklogField::Day => {
+                        let new_value = (self.worklog_day as u16) * 10 + digit_val as u16;
+                        self.worklog_day = if new_value > 31 { digit_val as u8 } else { new_value as u8 };
                     }
-                    WorklogField::Minutes => {
-                        let current = self.worklog_minutes as u16;
-                        let new_value = current * 10 + digit.to_digit(10).unwrap_or(0) as u16;
-                        self.worklog_minutes = new_value.min(59) as u8;
+                    WorklogField::Month => {
+                        let new_value = (self.worklog_month as u16) * 10 + digit_val as u16;
+                        self.worklog_month = if new_value > 12 { digit_val as u8 } else { new_value as u8 };
+                    }
+                    WorklogField::Year => {
+                        let new_value = (self.worklog_year as u32) * 10 + digit_val as u32;
+                        self.worklog_year = if new_value > 9999 { digit_val as u16 } else { new_value as u16 };
+                    }
+                    WorklogField::Hour => {
+                        let new_value = (self.worklog_hour as u16) * 10 + digit_val as u16;
+                        self.worklog_hour = if new_value > 23 { digit_val as u8 } else { new_value as u8 };
+                    }
+                    WorklogField::Minute => {
+                        let new_value = (self.worklog_minute as u16) * 10 + digit_val as u16;
+                        self.worklog_minute = if new_value > 59 { digit_val as u8 } else { new_value as u8 };
+                    }
+                    WorklogField::TimeHours => {
+                        let new_value = (self.worklog_time_hours as u16) * 10 + digit_val as u16;
+                        self.worklog_time_hours = if new_value > 99 { digit_val as u8 } else { new_value as u8 };
+                    }
+                    WorklogField::TimeMinutes => {
+                        let new_value = (self.worklog_time_minutes as u16) * 10 + digit_val as u16;
+                        self.worklog_time_minutes = if new_value > 59 { digit_val as u8 } else { new_value as u8 };
                     }
                     WorklogField::Comment => {
                         self.worklog_comment.push(digit);
@@ -310,12 +367,13 @@ impl App {
 
             Action::DeleteWorklogChar => {
                 match self.worklog_focused_field {
-                    WorklogField::Hours => {
-                        self.worklog_hours /= 10;
-                    }
-                    WorklogField::Minutes => {
-                        self.worklog_minutes /= 10;
-                    }
+                    WorklogField::Day => self.worklog_day /= 10,
+                    WorklogField::Month => self.worklog_month /= 10,
+                    WorklogField::Year => self.worklog_year /= 10,
+                    WorklogField::Hour => self.worklog_hour /= 10,
+                    WorklogField::Minute => self.worklog_minute /= 10,
+                    WorklogField::TimeHours => self.worklog_time_hours /= 10,
+                    WorklogField::TimeMinutes => self.worklog_time_minutes /= 10,
                     WorklogField::Comment => {
                         self.worklog_comment.pop();
                     }
@@ -323,12 +381,29 @@ impl App {
             }
 
             Action::WorklogSubmitted => {
-                self.worklog_hours = 0;
-                self.worklog_minutes = 0;
+                let now = Local::now();
+                self.worklog_day = now.day() as u8;
+                self.worklog_month = now.month() as u8;
+                self.worklog_year = now.year() as u16;
+                self.worklog_hour = now.hour() as u8;
+                self.worklog_minute = now.minute() as u8;
+                self.worklog_time_hours = 0;
+                self.worklog_time_minutes = 0;
                 self.worklog_comment.clear();
                 if let Some(prev) = self.previous_screen.take() {
                     self.current_screen = prev;
                 }
+            }
+
+            Action::ShowNotification(title, message, is_success) => {
+                self.notification_title = Some(title);
+                self.notification_message = Some(message);
+                self.notification_is_success = is_success;
+            }
+
+            Action::HideNotification => {
+                self.notification_title = None;
+                self.notification_message = None;
             }
 
             _ => {}

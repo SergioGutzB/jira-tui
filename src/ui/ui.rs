@@ -86,4 +86,8 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
     if app.is_loading {
         widgets::loading::render(frame, area);
     }
+
+    if let (Some(title), Some(message)) = (&app.notification_title, &app.notification_message) {
+        widgets::notification::render(frame, area, title, message, app.notification_is_success);
+    }
 }
