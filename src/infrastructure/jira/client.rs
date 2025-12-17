@@ -6,6 +6,19 @@ use crate::infrastructure::jira::dtos::{BoardResponseDto, IssueSearchResponseDto
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 
+/// Converts seconds to Jira time format (e.g., "1h 30m", "2h", "45m")
+fn format_time_spent(seconds: u64) -> String {
+    let hours = seconds / 3600;
+    let minutes = (seconds % 3600) / 60;
+
+    match (hours, minutes) {
+        (0, 0) => "1m".to_string(),
+        (0, m) => format!("{}m", m),
+        (h, 0) => format!("{}h", h),
+        (h, m) => format!("{}h {}m", h, m),
+    }
+}
+
 pub struct JiraClient {
     client: Client,
     base_url: String,
@@ -130,8 +143,41 @@ impl JiraRepository for JiraClient {
         }
     }
 
-    async fn add_worklog(&self, _worklog: Worklog) -> Result<()> {
-        Err(AppError::Unknown("Not implemented yet".to_string()))
+    async fn add_worklog(&self, worklog: Worklog) -> Result<()> {
+        let url = format!(
+            "{}/rest/api/3/issue/{}/worklog",
+            self.base_url, worklog.issue_key
+        );
+
+        let time_spent = format_time_spent(worklog.time_spent_seconds);
+
+        let payload = serde_json::json!({
+            "timeSpent": time_spent,
+            "comment": worklog.comment.unwrap_or_default(),
+            "started": worklog.started_at.to_rfc3339(),
+        });
+
+        let response = self
+            .client
+            .post(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| AppError::NetworkError(format!("Failed to add worklog: {}", e)))?;
+
+        match response.status() {
+            StatusCode::CREATED | StatusCode::OK => Ok(()),
+            StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
+            StatusCode::NOT_FOUND => Err(AppError::NotFound(format!(
+                "Issue {} not found",
+                worklog.issue_key
+            ))),
+            _ => Err(AppError::ApiError(format!(
+                "Failed to add worklog: {}",
+                response.status()
+            ))),
+        }
     }
 
     async fn transition_issue(&self, _issue_key: &str, _transition_id: &str) -> Result<()> {

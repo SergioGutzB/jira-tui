@@ -7,6 +7,7 @@ pub enum CurrentScreen {
     Backlog,
     IssueDetail,
     FilterModal,
+    WorklogModal,
     Exiting,
 }
 
@@ -16,6 +17,14 @@ pub enum FilterField {
     Assignee,
     Status,
     OrderBy,
+}
+
+/// Represents which field is currently focused in the worklog modal
+#[derive(Debug, Clone, PartialEq)]
+pub enum WorklogField {
+    Hours,
+    Minutes,
+    Comment,
 }
 
 #[derive(Debug, Clone)]
@@ -44,6 +53,15 @@ pub enum Action {
     CycleStatusFilter,
     CycleOrderByFilter,
     ApplyFilter,
+
+    OpenWorklogModal,
+    CloseWorklogModal,
+    NextWorklogField,
+    InputWorklogDigit(char),
+    InputWorklogChar(char),
+    DeleteWorklogChar,
+    SubmitWorklog,
+    WorklogSubmitted,
 }
 
 pub struct App {
@@ -67,6 +85,11 @@ pub struct App {
     pub filter_status: StatusFilter,
     pub filter_order_by: OrderByFilter,
     pub filter_focused_field: FilterField,
+
+    pub worklog_hours: u8,
+    pub worklog_minutes: u8,
+    pub worklog_comment: String,
+    pub worklog_focused_field: WorklogField,
 }
 
 impl App {
