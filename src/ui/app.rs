@@ -1,4 +1,4 @@
-use crate::domain::models::{Board, Issue, Paginated};
+use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurrentScreen {
@@ -6,7 +6,15 @@ pub enum CurrentScreen {
     BoardsList,
     Backlog,
     IssueDetail,
+    FilterModal,
     Exiting,
+}
+
+/// Represents which field is currently focused in the filter modal
+#[derive(Debug, Clone, PartialEq)]
+pub enum FilterField {
+    Assignee,
+    OrderBy,
 }
 
 #[derive(Debug, Clone)]
@@ -27,11 +35,19 @@ pub enum Action {
     LoadIssues(u64),
     IssuesLoaded(Paginated<Issue>),
     LoadMoreIssues,
+
+    OpenFilterModal,
+    CloseFilterModal,
+    NextFilterField,
+    CycleAssigneeFilter,
+    CycleOrderByFilter,
+    ApplyFilter,
 }
 
 pub struct App {
     pub should_quit: bool,
     pub current_screen: CurrentScreen,
+    pub previous_screen: Option<CurrentScreen>,
 
     pub boards: Vec<Board>,
     pub selected_board_index: usize,
@@ -44,6 +60,10 @@ pub struct App {
     pub vertical_scroll: u16,
     pub total_issues: u64,
     pub current_board_id: Option<u64>,
+
+    pub filter_assignee: AssigneeFilter,
+    pub filter_order_by: OrderByFilter,
+    pub filter_focused_field: FilterField,
 }
 
 impl App {
@@ -51,6 +71,7 @@ impl App {
         Self {
             should_quit: false,
             current_screen: CurrentScreen::Dashboard,
+            previous_screen: None,
             boards: Vec::new(),
             selected_board_index: 0,
             issues: Vec::new(),
@@ -59,6 +80,9 @@ impl App {
             vertical_scroll: 0,
             total_issues: 0,
             current_board_id: None,
+            filter_assignee: AssigneeFilter::CurrentUser,
+            filter_order_by: OrderByFilter::UpdatedDesc,
+            filter_focused_field: FilterField::Assignee,
         }
     }
 
@@ -70,6 +94,11 @@ impl App {
 
             Action::GoToBoards => {
                 self.current_screen = CurrentScreen::BoardsList;
+                self.vertical_scroll = 0;
+            }
+
+            Action::GoToBacklog => {
+                self.current_screen = CurrentScreen::Backlog;
                 self.vertical_scroll = 0;
             }
 
@@ -152,6 +181,42 @@ impl App {
                 }
                 _ => {}
             },
+
+            Action::OpenFilterModal => {
+                self.previous_screen = Some(self.current_screen.clone());
+                self.current_screen = CurrentScreen::FilterModal;
+                self.filter_focused_field = FilterField::Assignee;
+            }
+
+            Action::CloseFilterModal => {
+                if let Some(prev) = self.previous_screen.take() {
+                    self.current_screen = prev;
+                } else {
+                    self.current_screen = CurrentScreen::Backlog;
+                }
+            }
+
+            Action::NextFilterField => {
+                self.filter_focused_field = match self.filter_focused_field {
+                    FilterField::Assignee => FilterField::OrderBy,
+                    FilterField::OrderBy => FilterField::Assignee,
+                };
+            }
+
+            Action::CycleAssigneeFilter => {
+                self.filter_assignee = match self.filter_assignee {
+                    AssigneeFilter::CurrentUser => AssigneeFilter::Unassigned,
+                    AssigneeFilter::Unassigned => AssigneeFilter::All,
+                    AssigneeFilter::All => AssigneeFilter::CurrentUser,
+                };
+            }
+
+            Action::CycleOrderByFilter => {
+                self.filter_order_by = match self.filter_order_by {
+                    OrderByFilter::UpdatedDesc => OrderByFilter::CreatedDesc,
+                    OrderByFilter::CreatedDesc => OrderByFilter::UpdatedDesc,
+                };
+            }
 
             _ => {}
         }

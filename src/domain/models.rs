@@ -40,6 +40,59 @@ pub struct Worklog {
     pub started_at: DateTime<Utc>,
 }
 
+/// Assignee filter options for the UI
+#[derive(Debug, Clone, PartialEq)]
+pub enum AssigneeFilter {
+    CurrentUser,
+    Unassigned,
+    All,
+}
+
+impl AssigneeFilter {
+    /// Converts the enum to the JQL assignee value
+    pub fn to_jql(&self) -> Option<String> {
+        match self {
+            AssigneeFilter::CurrentUser => Some("currentUser()".to_string()),
+            AssigneeFilter::Unassigned => Some("EMPTY".to_string()),
+            AssigneeFilter::All => None,
+        }
+    }
+
+    /// Get display label for UI
+    pub fn label(&self) -> &str {
+        match self {
+            AssigneeFilter::CurrentUser => "Mi asignación",
+            AssigneeFilter::Unassigned => "Sin asignar",
+            AssigneeFilter::All => "Todos",
+        }
+    }
+}
+
+/// Order by options for the UI
+#[derive(Debug, Clone, PartialEq)]
+pub enum OrderByFilter {
+    UpdatedDesc,
+    CreatedDesc,
+}
+
+impl OrderByFilter {
+    /// Converts the enum to JQL ORDER BY clause
+    pub fn to_jql(&self) -> String {
+        match self {
+            OrderByFilter::UpdatedDesc => "updated DESC".to_string(),
+            OrderByFilter::CreatedDesc => "created DESC".to_string(),
+        }
+    }
+
+    /// Get display label for UI
+    pub fn label(&self) -> &str {
+        match self {
+            OrderByFilter::UpdatedDesc => "Actualizado recientemente",
+            OrderByFilter::CreatedDesc => "Creado recientemente",
+        }
+    }
+}
+
 /// Represents the search criteria for issues.
 #[derive(Debug, Clone, Default)]
 pub struct IssueFilter {
@@ -58,6 +111,19 @@ impl IssueFilter {
             assignee: Some("currentUser()".to_string()),
             status: None, // None means "All statuses"
             order_by: Some("updated DESC".to_string()),
+        }
+    }
+
+    /// Creates a filter from UI-friendly enum options
+    pub fn from_options(
+        assignee: AssigneeFilter,
+        status: Option<String>,
+        order_by: OrderByFilter,
+    ) -> Self {
+        Self {
+            assignee: assignee.to_jql(),
+            status,
+            order_by: Some(order_by.to_jql()),
         }
     }
 }
