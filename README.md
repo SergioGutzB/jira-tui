@@ -6,6 +6,20 @@
 ![Version](https://img.shields.io/badge/version-0.1.0--beta-blue?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg?style=for-the-badge)
 
+## 🎬 Demo
+
+### Filtering Issues
+
+Filter your issues by assignee, status, and sort order with an intuitive modal interface:
+
+![Filter Demo](docs/demo_filter.gif)
+
+### Managing Worklogs
+
+Easily add, edit, and manage your time tracking directly from the terminal:
+
+![Worklog Demo](docs/demo_worklog.gif)
+
 ## 📋 Description
 
 **Jira TUI** is a terminal application that allows you to interact with Jira efficiently without leaving your command line. Built with Rust following Hexagonal Architecture (Clean Architecture) principles.
