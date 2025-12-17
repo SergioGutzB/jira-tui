@@ -115,8 +115,8 @@ impl JiraRepository for JiraClient {
                 Ok(Paginated::new(
                     issues,
                     dto.total,
-                    dto.startAt,
-                    dto.maxResults,
+                    dto.start_at,
+                    dto.max_results,
                 ))
             }
             StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),

@@ -5,9 +5,12 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 pub struct BoardResponseDto {
-    pub maxResults: u64,
-    pub startAt: u64,
-    pub isLast: Option<bool>,
+    #[serde(rename = "maxResults")]
+    pub max_results: u64,
+    #[serde(rename = "startAt")]
+    pub start_at: u64,
+    #[serde(rename = "isLast")]
+    pub is_last: Option<bool>,
     pub values: Vec<BoardDto>,
 }
 
@@ -46,8 +49,10 @@ impl From<BoardDto> for Board {
 
 #[derive(Deserialize)]
 pub struct IssueSearchResponseDto {
-    pub startAt: u64,
-    pub maxResults: u64,
+    #[serde(rename = "startAt")]
+    pub start_at: u64,
+    #[serde(rename = "maxResults")]
+    pub max_results: u64,
     pub total: u64,
     pub issues: Vec<IssueDto>,
 }
