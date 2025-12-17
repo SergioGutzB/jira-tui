@@ -3,19 +3,18 @@ mod domain;
 mod infrastructure;
 mod ui;
 
-use crossterm::event::KeyCode;
 use dotenv::dotenv;
 use log::error;
 use std::sync::Arc;
 
 use crate::application::use_cases::{GetBacklogUseCase, GetBoardsUseCase};
-use crate::domain::models::IssueFilter;
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::client::JiraClient;
 use crate::ui::app::{Action, App, CurrentScreen};
 use crate::ui::events::{Event, EventHandler};
+use crate::ui::keys;
 use crate::ui::tui;
-use crate::ui::ui::render;
+use crate::ui::ui::render; // Importamos el mapeador
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,110 +41,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         terminal.draw(|frame| render(&app, frame))?;
 
         tokio::select! {
+            // A. USER INPUT
             Some(event) = events.next() => {
                 match event {
                     Event::Key(key) => {
-                        match key.code {
-                            // GLOBAL QUIT
-                            KeyCode::Char('q') => {
-                                // If in detail or backlog, 'q' might mean quit app
-                                // or we can enforce 'Esc' to go back first.
-                                // For now, let's make 'q' always quit for speed.
-                                app.update(Action::Quit);
-                            }
+                        // 1. Map Key -> Action (Pure Logic)
+                        if let Some(action) = keys::from_event(key, &app) {
 
-                            // NAVIGATION BACK
-                            KeyCode::Esc => {
-                                match app.current_screen {
-                                    CurrentScreen::IssueDetail => {
-                                        // Go back to list
-                                        app.current_screen = CurrentScreen::Backlog;
-                                        app.vertical_scroll = 0;
-                                    }
-                                    CurrentScreen::Backlog => {
-                                        app.update(Action::GoToBoards);
-                                    }
-                                    _ => app.update(Action::Quit),
-                                }
-                            }
-
-                            // LOAD BOARDS
-                            KeyCode::Char('b') => {
-                                app.update(Action::LoadBoards);
-                                let uc = get_boards_uc.clone();
-                                let tx = action_tx.clone();
-                                tokio::spawn(async move {
-                                    match uc.execute().await {
-                                        Ok(boards) => { let _ = tx.send(Action::BoardsLoaded(boards)); }
-                                        Err(e) => error!("Error loading boards: {}", e),
-                                    }
-                                });
-                            }
-
-                            // SELECT / ENTER
-                            KeyCode::Enter => {
-                                match app.current_screen {
-                                    CurrentScreen::BoardsList => {
-                                        if let Some(board) = app.get_selected_board() {
-                                            let board_id = board.id;
-                                            app.update(Action::LoadIssues(board_id));
-
-                                            let uc = get_backlog_uc.clone();
-                                            let tx = action_tx.clone();
-
-                                            // Primera página
-                                            tokio::spawn(async move {
-                                                let filter = IssueFilter::default_active_user();
-                                                match uc.execute(board_id, 0, 20, filter).await {
-                                                    Ok(p) => { let _ = tx.send(Action::IssuesLoaded(p)); }
-                                                    Err(e) => error!("Error: {}", e),
-                                                }
-                                            });
+                            // 2. Handle Side Effects (Async Network Calls) based on the Action
+                            match &action {
+                                Action::LoadBoards => {
+                                    let uc = get_boards_uc.clone();
+                                    let tx = action_tx.clone();
+                                    tokio::spawn(async move {
+                                        match uc.execute().await {
+                                            Ok(boards) => { let _ = tx.send(Action::BoardsLoaded(boards)); }
+                                            Err(e) => error!("Error loading boards: {}", e),
                                         }
-                                    }
-                                    // ...
-                                    _ => {}
+                                    });
                                 }
+                                Action::LoadIssues(board_id) => {
+                                    let uc = get_backlog_uc.clone();
+                                    let tx = action_tx.clone();
+                                    let bid = *board_id;
+
+                                    tokio::spawn(async move {
+                                        let filter = crate::domain::models::IssueFilter::default_active_user();
+                                        // Load Page 1 (0..20)
+                                        match uc.execute(bid, 0, 20, filter).await {
+                                            Ok(p) => { let _ = tx.send(Action::IssuesLoaded(p)); }
+                                            Err(e) => error!("Error loading issues: {}", e),
+                                        }
+                                    });
+                                }
+                                _ => {}
                             }
 
-                            // SCROLL / MOVE
-                            KeyCode::Up | KeyCode::Char('k') => app.update(Action::SelectPrevious),
+                            // 3. Update UI State (Synchronous)
+                            app.update(action.clone());
 
-                            KeyCode::Down | KeyCode::Char('j') => {
-                                app.update(Action::SelectNext);
-
-                                // Detectar si necesitamos cargar más
-                                if app.current_screen == CurrentScreen::Backlog
-                                   && !app.is_loading
-                                   && app.issues.len() < app.total_issues as usize
-                                   && app.selected_issue_index >= app.issues.len().saturating_sub(2)
-                                {
-                                    if let Some(board_id) = app.current_board_id {
-                                        let start_at = app.issues.len() as u64;
-                                        app.is_loading = true; // Feedback visual inmediato
-
-                                        let uc = get_backlog_uc.clone();
-                                        let tx = action_tx.clone();
-
-                                        tokio::spawn(async move {
-                                            let filter = IssueFilter::default_active_user();
-                                            // Pide los siguientes 20
-                                            match uc.execute(board_id, start_at, 20, filter).await {
-                                                Ok(p) => { let _ = tx.send(Action::IssuesLoaded(p)); }
-                                                Err(e) => error!("Pagination Error: {}", e),
-                                            }
-                                        });
-                                    }
-                                }
-                            }
-
-                            _ => {}
+                            // 4. Post-Update Logic (e.g., Infinite Scroll Trigger)
+                            // This checks if the state change requires fetching more data
+                            check_infinite_scroll(&mut app, get_backlog_uc.clone(), action_tx.clone());
                         }
                     }
                     Event::Tick => app.update(Action::Tick),
                     _ => {}
                 }
             }
+
+            // B. ASYNC BACKGROUND TASKS
             Some(action) = action_rx.recv() => {
                 app.update(action);
             }
@@ -158,4 +103,32 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tui::restore()?;
     Ok(())
+}
+
+/// Helper to handle infinite scroll logic separately from key bindings
+fn check_infinite_scroll(
+    app: &mut App,
+    uc: Arc<GetBacklogUseCase>,
+    tx: tokio::sync::mpsc::UnboundedSender<Action>,
+) {
+    if app.current_screen == CurrentScreen::Backlog
+        && !app.is_loading
+        && app.issues.len() < app.total_issues as usize
+        && app.selected_issue_index >= app.issues.len().saturating_sub(2)
+    {
+        if let Some(board_id) = app.current_board_id {
+            let start_at = app.issues.len() as u64;
+            app.is_loading = true;
+
+            tokio::spawn(async move {
+                let filter = crate::domain::models::IssueFilter::default_active_user();
+                match uc.execute(board_id, start_at, 20, filter).await {
+                    Ok(p) => {
+                        let _ = tx.send(Action::IssuesLoaded(p));
+                    }
+                    Err(e) => error!("Pagination err: {}", e),
+                }
+            });
+        }
+    }
 }

@@ -5,7 +5,7 @@ pub enum CurrentScreen {
     Dashboard,
     BoardsList,
     Backlog,
-    IssueDetail, // View for specific issue info
+    IssueDetail,
     Exiting,
 }
 
@@ -14,19 +14,17 @@ pub enum Action {
     Tick,
     Quit,
     Resize(u16, u16),
-
-    // Navigation
     GoToBoards,
     GoToBacklog,
+
     SelectNext,
     SelectPrevious,
     Enter,
+    ViewIssueDetail,
 
-    // Data Loading
     LoadBoards,
     BoardsLoaded(Vec<Board>),
     LoadIssues(u64),
-
     IssuesLoaded(Paginated<Issue>),
     LoadMoreIssues,
 }
@@ -43,7 +41,6 @@ pub struct App {
 
     pub is_loading: bool,
 
-    // New: State for text scrolling in Detail view
     pub vertical_scroll: u16,
     pub total_issues: u64,
     pub current_board_id: Option<u64>,
@@ -84,6 +81,13 @@ impl App {
                 self.vertical_scroll = 0;
             }
 
+            Action::ViewIssueDetail => {
+                if !self.issues.is_empty() {
+                    self.current_screen = CurrentScreen::IssueDetail;
+                    self.vertical_scroll = 0;
+                }
+            }
+
             Action::LoadIssues(board_id) => {
                 self.is_loading = true;
                 self.current_screen = CurrentScreen::Backlog;
@@ -97,7 +101,6 @@ impl App {
                 self.is_loading = false;
                 self.current_screen = CurrentScreen::Backlog;
 
-                // Si start_at es 0, es una búsqueda nueva. Si no, es un append.
                 if paginated.start_at == 0 {
                     self.issues = paginated.items;
                     self.selected_issue_index = 0;
@@ -108,64 +111,47 @@ impl App {
                 self.total_issues = paginated.total;
             }
 
-            Action::SelectNext => {
-                match self.current_screen {
-                    // ... Boards ...
-                    CurrentScreen::Backlog => {
-                        if !self.issues.is_empty() {
-                            let next = self.selected_issue_index.saturating_add(1);
-                            if next < self.issues.len() {
-                                self.selected_issue_index = next;
-                            }
-                            // AUTO-PAGINACIÓN:
-                            // Si llegamos al final Y tenemos menos items que el total, cargamos más.
-                            // Trigger un poco antes del final (ej. 2 items antes) para suavidad.
-                            if self.issues.len() < self.total_issues as usize
-                                && self.selected_issue_index >= self.issues.len() - 2
-                                && !self.is_loading
-                            {
-                                // Aquí no podemos despachar acción asíncrona directamente,
-                                // así que marcamos loading o usamos un flag.
-                                // Una estrategia común en TUI simple es retornar un "Effect"
-                                // o que el main loop detecte esto.
-                                // Para simplificar, usaremos un truco en el Main Loop.
-                            }
+            Action::SelectNext => match self.current_screen {
+                CurrentScreen::BoardsList | CurrentScreen::Dashboard => {
+                    if !self.boards.is_empty() {
+                        let next = self.selected_board_index.saturating_add(1);
+                        if next < self.boards.len() {
+                            self.selected_board_index = next;
                         }
                     }
-                    // ...
-                    _ => {}
                 }
-                // Repetir lógica de Boards/Details...
-                match self.current_screen {
-                    CurrentScreen::BoardsList => { /* ... */ }
-                    CurrentScreen::IssueDetail => {
-                        self.vertical_scroll = self.vertical_scroll.saturating_add(1);
+                CurrentScreen::Backlog => {
+                    if !self.issues.is_empty() {
+                        let next = self.selected_issue_index.saturating_add(1);
+                        if next < self.issues.len() {
+                            self.selected_issue_index = next;
+                        }
                     }
-                    _ => {}
                 }
-            }
+                CurrentScreen::IssueDetail => {
+                    self.vertical_scroll = self.vertical_scroll.saturating_add(1);
+                }
+                _ => {}
+            },
 
-            Action::SelectPrevious => {
-                match self.current_screen {
-                    CurrentScreen::BoardsList => {
-                        if self.selected_board_index > 0 {
-                            self.selected_board_index -= 1;
-                        }
+            Action::SelectPrevious => match self.current_screen {
+                CurrentScreen::BoardsList | CurrentScreen::Dashboard => {
+                    if self.selected_board_index > 0 {
+                        self.selected_board_index -= 1;
                     }
-                    CurrentScreen::Backlog => {
-                        if self.selected_issue_index > 0 {
-                            self.selected_issue_index -= 1;
-                        }
-                    }
-                    // Scroll Up in Detail View
-                    CurrentScreen::IssueDetail => {
-                        if self.vertical_scroll > 0 {
-                            self.vertical_scroll -= 1;
-                        }
-                    }
-                    _ => {}
                 }
-            }
+                CurrentScreen::Backlog => {
+                    if self.selected_issue_index > 0 {
+                        self.selected_issue_index -= 1;
+                    }
+                }
+                CurrentScreen::IssueDetail => {
+                    if self.vertical_scroll > 0 {
+                        self.vertical_scroll -= 1;
+                    }
+                }
+                _ => {}
+            },
 
             _ => {}
         }

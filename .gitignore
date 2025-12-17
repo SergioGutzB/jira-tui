@@ -38,6 +38,7 @@ Cargo.lock
 .ai-sessions/
 prompts/private/
 prompts/drafts/
+CLAUDE.md
 
 #######################################
 # Generated docs / exports
