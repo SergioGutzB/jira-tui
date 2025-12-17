@@ -1,4 +1,4 @@
-use crate::domain::models::{Board, Issue, IssueStatus};
+use crate::domain::models::{Board, Issue, IssueStatus, WorklogEntry};
 use serde::Deserialize;
 
 // --- BOARDS ---
@@ -92,7 +92,6 @@ pub struct UserDto {
 
 impl From<IssueDto> for Issue {
     fn from(dto: IssueDto) -> Self {
-        // Mapeo básico de estados
         let status = match dto.fields.status.name.to_lowercase().as_str() {
             "to do" | "new" | "open" => IssueStatus::Todo,
             "in progress" | "in review" => IssueStatus::InProgress,
@@ -117,6 +116,100 @@ impl From<IssueDto> for Issue {
             status,
             assignee: dto.fields.assignee.map(|u| u.display_name),
             priority: dto.fields.priority.map(|p| p.name),
+            created_at,
+            updated_at,
+        }
+    }
+}
+
+// --- WORKLOGS ---
+
+#[derive(Deserialize)]
+pub struct WorklogResponseDto {
+    #[serde(rename = "startAt")]
+    pub start_at: u64,
+    #[serde(rename = "maxResults")]
+    pub max_results: u64,
+    pub total: u64,
+    pub worklogs: Vec<WorklogDto>,
+}
+
+#[derive(Deserialize)]
+pub struct WorklogDto {
+    pub id: String,
+    #[serde(rename = "issueId")]
+    pub issue_id: String,
+    #[serde(rename = "timeSpentSeconds")]
+    pub time_spent_seconds: u64,
+    pub comment: Option<CommentDto>,
+    pub started: String,
+    pub author: UserDto,
+    pub created: String,
+    pub updated: String,
+}
+
+#[derive(Deserialize)]
+pub struct CommentDto {
+    pub content: Option<Vec<ContentBlockDto>>,
+}
+
+#[derive(Deserialize)]
+pub struct ContentBlockDto {
+    pub content: Option<Vec<ContentTextDto>>,
+}
+
+#[derive(Deserialize)]
+pub struct ContentTextDto {
+    pub text: Option<String>,
+}
+
+impl WorklogDto {
+    pub fn to_worklog_entry(self, issue_key: String) -> WorklogEntry {
+        let comment = self.comment.and_then(|c| {
+            c.content.and_then(|blocks| {
+                let texts: Vec<String> = blocks
+                    .into_iter()
+                    .filter_map(|block| {
+                        block.content.and_then(|content| {
+                            let texts: Vec<String> = content
+                                .into_iter()
+                                .filter_map(|ct| ct.text)
+                                .collect();
+                            if texts.is_empty() {
+                                None
+                            } else {
+                                Some(texts.join(" "))
+                            }
+                        })
+                    })
+                    .collect();
+                if texts.is_empty() {
+                    None
+                } else {
+                    Some(texts.join("\n"))
+                }
+            })
+        });
+
+        let started_at = chrono::DateTime::parse_from_str(&self.started, "%Y-%m-%dT%H:%M:%S%.3f%z")
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+
+        let created_at = chrono::DateTime::parse_from_str(&self.created, "%Y-%m-%dT%H:%M:%S%.3f%z")
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+
+        let updated_at = chrono::DateTime::parse_from_str(&self.updated, "%Y-%m-%dT%H:%M:%S%.3f%z")
+            .map(|dt| dt.with_timezone(&chrono::Utc))
+            .unwrap_or_else(|_| chrono::Utc::now());
+
+        WorklogEntry {
+            id: self.id,
+            issue_key,
+            time_spent_seconds: self.time_spent_seconds,
+            comment,
+            started_at,
+            author: self.author.display_name,
             created_at,
             updated_at,
         }

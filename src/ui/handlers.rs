@@ -3,7 +3,10 @@ use log::error;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::application::use_cases::{AddWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase};
+use crate::application::use_cases::{
+    AddWorklogUseCase, DeleteWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase,
+    GetWorklogsUseCase, UpdateWorklogUseCase,
+};
 use crate::domain::models::{IssueFilter, Worklog};
 use crate::ui::app::{Action, App, CurrentScreen};
 
@@ -173,6 +176,183 @@ pub fn handle_worklog_submission(
                         false,
                     ));
                     error!("Error adding worklog: {}", e);
+
+                    // Auto-dismiss error notification after 5 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
+                }
+            }
+        });
+    }
+}
+
+/// Handles loading worklogs for an issue
+pub fn handle_load_worklogs(
+    issue_key: &str,
+    get_worklogs_uc: Arc<GetWorklogsUseCase>,
+    tx: UnboundedSender<Action>,
+) {
+    let issue_key = issue_key.to_string();
+    tokio::spawn(async move {
+        match get_worklogs_uc.execute(&issue_key, 0, 50).await {
+            Ok(paginated) => {
+                let _ = tx.send(Action::WorklogsLoaded(paginated));
+            }
+            Err(e) => {
+                let _ = tx.send(Action::ShowNotification(
+                    "❌ Error".to_string(),
+                    format!("Error al cargar tiempos: {}", e),
+                    false,
+                ));
+                error!("Error loading worklogs: {}", e);
+            }
+        }
+    });
+}
+
+/// Handles worklog update
+pub fn handle_update_worklog(
+    app: &App,
+    update_worklog_uc: Arc<UpdateWorklogUseCase>,
+    get_worklogs_uc: Arc<GetWorklogsUseCase>,
+    tx: UnboundedSender<Action>,
+) {
+    if let (Some(issue), Some(worklog_entry)) =
+        (app.get_selected_issue(), &app.worklog_being_edited)
+    {
+        let total_seconds =
+            (app.worklog_time_hours as u64 * 3600) + (app.worklog_time_minutes as u64 * 60);
+
+        if total_seconds == 0 {
+            error!("Cannot log 0 time");
+            return;
+        }
+
+        let started_at = match Local.with_ymd_and_hms(
+            app.worklog_year as i32,
+            app.worklog_month as u32,
+            app.worklog_day as u32,
+            app.worklog_hour as u32,
+            app.worklog_minute as u32,
+            0,
+        ) {
+            chrono::LocalResult::Single(dt) => dt.with_timezone(&Utc),
+            _ => {
+                error!("Invalid date/time");
+                return;
+            }
+        };
+
+        let worklog = Worklog {
+            issue_key: issue.key.clone(),
+            time_spent_seconds: total_seconds,
+            comment: if app.worklog_comment.is_empty() {
+                None
+            } else {
+                Some(app.worklog_comment.clone())
+            },
+            started_at,
+        };
+
+        let issue_key = issue.key.clone();
+        let worklog_id = worklog_entry.id.clone();
+        let tx_clone = tx.clone();
+
+        tokio::spawn(async move {
+            match update_worklog_uc
+                .execute(&issue_key, &worklog_id, worklog)
+                .await
+            {
+                Ok(_) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "✅ Éxito".to_string(),
+                        "Tiempo actualizado correctamente".to_string(),
+                        true,
+                    ));
+                    let _ = tx.send(Action::WorklogUpdated);
+
+                    // Reload worklogs
+                    match get_worklogs_uc.execute(&issue_key, 0, 50).await {
+                        Ok(paginated) => {
+                            let _ = tx.send(Action::WorklogsLoaded(paginated));
+                        }
+                        Err(e) => error!("Error reloading worklogs: {}", e),
+                    }
+
+                    // Auto-dismiss notification after 3 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "❌ Error".to_string(),
+                        format!("Error al actualizar tiempo: {}", e),
+                        false,
+                    ));
+                    error!("Error updating worklog: {}", e);
+
+                    // Auto-dismiss error notification after 5 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
+                }
+            }
+        });
+    }
+}
+
+/// Handles worklog deletion
+pub fn handle_delete_worklog(
+    app: &App,
+    delete_worklog_uc: Arc<DeleteWorklogUseCase>,
+    get_worklogs_uc: Arc<GetWorklogsUseCase>,
+    tx: UnboundedSender<Action>,
+) {
+    if let (Some(issue), Some(worklog)) = (app.get_selected_issue(), app.get_selected_worklog()) {
+        let issue_key = issue.key.clone();
+        let worklog_id = worklog.id.clone();
+        let tx_clone = tx.clone();
+
+        tokio::spawn(async move {
+            match delete_worklog_uc.execute(&issue_key, &worklog_id).await {
+                Ok(_) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "✅ Éxito".to_string(),
+                        "Tiempo eliminado correctamente".to_string(),
+                        true,
+                    ));
+                    let _ = tx.send(Action::WorklogDeleted);
+
+                    // Reload worklogs
+                    match get_worklogs_uc.execute(&issue_key, 0, 50).await {
+                        Ok(paginated) => {
+                            let _ = tx.send(Action::WorklogsLoaded(paginated));
+                        }
+                        Err(e) => error!("Error reloading worklogs: {}", e),
+                    }
+
+                    // Auto-dismiss notification after 3 seconds
+                    let tx_dismiss = tx_clone.clone();
+                    tokio::spawn(async move {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+                        let _ = tx_dismiss.send(Action::HideNotification);
+                    });
+                }
+                Err(e) => {
+                    let _ = tx.send(Action::ShowNotification(
+                        "❌ Error".to_string(),
+                        format!("Error al eliminar tiempo: {}", e),
+                        false,
+                    ));
+                    error!("Error deleting worklog: {}", e);
 
                     // Auto-dismiss error notification after 5 seconds
                     let tx_dismiss = tx_clone.clone();

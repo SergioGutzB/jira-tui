@@ -1,4 +1,4 @@
-use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter};
+use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter, WorklogEntry};
 use chrono::{Local, Datelike, Timelike};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -9,6 +9,7 @@ pub enum CurrentScreen {
     IssueDetail,
     FilterModal,
     WorklogModal,
+    WorklogListModal,
     Exiting,
 }
 
@@ -69,6 +70,16 @@ pub enum Action {
     SubmitWorklog,
     WorklogSubmitted,
 
+    OpenWorklogListModal,
+    CloseWorklogListModal,
+    LoadWorklogs(String),
+    WorklogsLoaded(Paginated<WorklogEntry>),
+    SelectWorklogForEdit,
+    SelectWorklogForDelete,
+    ConfirmDeleteWorklog,
+    WorklogDeleted,
+    WorklogUpdated,
+
     ShowNotification(String, String, bool),
     HideNotification,
 }
@@ -105,6 +116,11 @@ pub struct App {
     pub worklog_comment: String,
     pub worklog_focused_field: WorklogField,
 
+    pub worklogs: Vec<WorklogEntry>,
+    pub selected_worklog_index: usize,
+    pub total_worklogs: u64,
+    pub worklog_being_edited: Option<WorklogEntry>,
+
     pub notification_title: Option<String>,
     pub notification_message: Option<String>,
     pub notification_is_success: bool,
@@ -138,6 +154,10 @@ impl App {
             worklog_time_minutes: 0,
             worklog_comment: String::new(),
             worklog_focused_field: WorklogField::Day,
+            worklogs: Vec::new(),
+            selected_worklog_index: 0,
+            total_worklogs: 0,
+            worklog_being_edited: None,
             notification_title: None,
             notification_message: None,
             notification_is_success: false,
@@ -218,6 +238,14 @@ impl App {
                 CurrentScreen::IssueDetail => {
                     self.vertical_scroll = self.vertical_scroll.saturating_add(1);
                 }
+                CurrentScreen::WorklogListModal => {
+                    if !self.worklogs.is_empty() {
+                        let next = self.selected_worklog_index.saturating_add(1);
+                        if next < self.worklogs.len() {
+                            self.selected_worklog_index = next;
+                        }
+                    }
+                }
                 _ => {}
             },
 
@@ -235,6 +263,11 @@ impl App {
                 CurrentScreen::IssueDetail => {
                     if self.vertical_scroll > 0 {
                         self.vertical_scroll -= 1;
+                    }
+                }
+                CurrentScreen::WorklogListModal => {
+                    if self.selected_worklog_index > 0 {
+                        self.selected_worklog_index -= 1;
                     }
                 }
                 _ => {}
@@ -406,6 +439,68 @@ impl App {
                 self.notification_message = None;
             }
 
+            Action::OpenWorklogListModal => {
+                self.previous_screen = Some(self.current_screen.clone());
+                self.current_screen = CurrentScreen::WorklogListModal;
+                self.worklogs.clear();
+                self.selected_worklog_index = 0;
+                self.total_worklogs = 0;
+            }
+
+            Action::CloseWorklogListModal => {
+                if let Some(prev) = self.previous_screen.take() {
+                    self.current_screen = prev;
+                } else {
+                    self.current_screen = CurrentScreen::IssueDetail;
+                }
+                self.worklog_being_edited = None;
+            }
+
+            Action::WorklogsLoaded(paginated) => {
+                self.is_loading = false;
+                if paginated.start_at == 0 {
+                    self.worklogs = paginated.items;
+                    self.selected_worklog_index = 0;
+                } else {
+                    self.worklogs.extend(paginated.items);
+                }
+                self.total_worklogs = paginated.total;
+            }
+
+            Action::SelectWorklogForEdit => {
+                if self.selected_worklog_index < self.worklogs.len() {
+                    let worklog = &self.worklogs[self.selected_worklog_index];
+
+                    let started = worklog.started_at.with_timezone(&Local);
+                    self.worklog_day = started.day() as u8;
+                    self.worklog_month = started.month() as u8;
+                    self.worklog_year = started.year() as u16;
+                    self.worklog_hour = started.hour() as u8;
+                    self.worklog_minute = started.minute() as u8;
+                    self.worklog_time_hours = (worklog.time_spent_seconds / 3600) as u8;
+                    self.worklog_time_minutes = ((worklog.time_spent_seconds % 3600) / 60) as u8;
+                    self.worklog_comment = worklog.comment.clone().unwrap_or_default();
+
+                    self.worklog_being_edited = Some(worklog.clone());
+                    self.previous_screen = Some(self.current_screen.clone());
+                    self.current_screen = CurrentScreen::WorklogModal;
+                }
+            }
+
+            Action::WorklogUpdated => {
+                self.worklog_being_edited = None;
+                if let Some(prev) = self.previous_screen.take() {
+                    self.current_screen = prev;
+                }
+            }
+
+            Action::WorklogDeleted => {
+                self.is_loading = false;
+                if self.selected_worklog_index > 0 {
+                    self.selected_worklog_index -= 1;
+                }
+            }
+
             _ => {}
         }
     }
@@ -416,5 +511,9 @@ impl App {
 
     pub fn get_selected_issue(&self) -> Option<&Issue> {
         self.issues.get(self.selected_issue_index)
+    }
+
+    pub fn get_selected_worklog(&self) -> Option<&WorklogEntry> {
+        self.worklogs.get(self.selected_worklog_index)
     }
 }

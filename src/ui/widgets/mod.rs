@@ -5,4 +5,5 @@ pub mod issue_detail;
 pub mod loading;
 pub mod notification;
 pub mod utils;
+pub mod worklog_list_modal;
 pub mod worklog_modal;

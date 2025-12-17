@@ -1,8 +1,8 @@
 use crate::domain::errors::{AppError, Result};
-use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated, Worklog};
+use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated, Worklog, WorklogEntry};
 use crate::domain::repositories::JiraRepository;
 use crate::infrastructure::config::JiraConfig;
-use crate::infrastructure::jira::dtos::{BoardResponseDto, IssueSearchResponseDto};
+use crate::infrastructure::jira::dtos::{BoardResponseDto, IssueSearchResponseDto, WorklogResponseDto};
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 
@@ -193,6 +193,136 @@ impl JiraRepository for JiraClient {
             ))),
             _ => Err(AppError::ApiError(format!(
                 "Failed to add worklog: {}",
+                response.status()
+            ))),
+        }
+    }
+
+    async fn get_worklogs(&self, issue_key: &str, start_at: u64, max_results: u64) -> Result<Paginated<WorklogEntry>> {
+        let url = format!(
+            "{}/rest/api/3/issue/{}/worklog",
+            self.base_url, issue_key
+        );
+
+        let response = self
+            .client
+            .get(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
+            .query(&[
+                ("startAt", start_at.to_string()),
+                ("maxResults", max_results.to_string()),
+            ])
+            .send()
+            .await
+            .map_err(|e| AppError::ApiError(format!("Failed to get worklogs: {}", e)))?;
+
+        match response.status() {
+            StatusCode::OK => {
+                let dto: WorklogResponseDto = response
+                    .json()
+                    .await
+                    .map_err(|e| AppError::ApiError(format!("Failed to parse worklogs: {}", e)))?;
+
+                let worklogs: Vec<WorklogEntry> = dto
+                    .worklogs
+                    .into_iter()
+                    .map(|w| w.to_worklog_entry(issue_key.to_string()))
+                    .collect();
+
+                Ok(Paginated::new(
+                    worklogs,
+                    dto.total,
+                    dto.start_at,
+                    dto.max_results,
+                ))
+            }
+            StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
+            StatusCode::NOT_FOUND => Err(AppError::NotFound(format!(
+                "Issue {} not found",
+                issue_key
+            ))),
+            _ => Err(AppError::ApiError(format!(
+                "Failed to get worklogs: {}",
+                response.status()
+            ))),
+        }
+    }
+
+    async fn update_worklog(&self, issue_key: &str, worklog_id: &str, worklog: Worklog) -> Result<()> {
+        let url = format!(
+            "{}/rest/api/3/issue/{}/worklog/{}",
+            self.base_url, issue_key, worklog_id
+        );
+
+        let started = worklog.started_at.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+
+        let mut payload = serde_json::json!({
+            "timeSpentSeconds": worklog.time_spent_seconds,
+            "started": started,
+        });
+
+        if let Some(comment_text) = worklog.comment {
+            if !comment_text.is_empty() {
+                payload["comment"] = serde_json::json!({
+                    "type": "doc",
+                    "version": 1,
+                    "content": [{
+                        "type": "paragraph",
+                        "content": [{
+                            "type": "text",
+                            "text": comment_text
+                        }]
+                    }]
+                });
+            }
+        }
+
+        let response = self
+            .client
+            .put(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
+            .json(&payload)
+            .send()
+            .await
+            .map_err(|e| AppError::ApiError(format!("Failed to update worklog: {}", e)))?;
+
+        match response.status() {
+            StatusCode::OK => Ok(()),
+            StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
+            StatusCode::NOT_FOUND => Err(AppError::NotFound(format!(
+                "Worklog {} not found",
+                worklog_id
+            ))),
+            _ => Err(AppError::ApiError(format!(
+                "Failed to update worklog: {}",
+                response.status()
+            ))),
+        }
+    }
+
+    async fn delete_worklog(&self, issue_key: &str, worklog_id: &str) -> Result<()> {
+        let url = format!(
+            "{}/rest/api/3/issue/{}/worklog/{}",
+            self.base_url, issue_key, worklog_id
+        );
+
+        let response = self
+            .client
+            .delete(&url)
+            .basic_auth(&self.email, Some(&self.api_token))
+            .send()
+            .await
+            .map_err(|e| AppError::ApiError(format!("Failed to delete worklog: {}", e)))?;
+
+        match response.status() {
+            StatusCode::NO_CONTENT | StatusCode::OK => Ok(()),
+            StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
+            StatusCode::NOT_FOUND => Err(AppError::NotFound(format!(
+                "Worklog {} not found",
+                worklog_id
+            ))),
+            _ => Err(AppError::ApiError(format!(
+                "Failed to delete worklog: {}",
                 response.status()
             ))),
         }

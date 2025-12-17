@@ -6,7 +6,10 @@ mod ui;
 use dotenv::dotenv;
 use std::sync::Arc;
 
-use crate::application::use_cases::{AddWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase};
+use crate::application::use_cases::{
+    AddWorklogUseCase, DeleteWorklogUseCase, GetBacklogUseCase, GetBoardsUseCase,
+    GetWorklogsUseCase, UpdateWorklogUseCase,
+};
 use crate::infrastructure::config::JiraConfig;
 use crate::infrastructure::jira::client::JiraClient;
 use crate::ui::app::{Action, App};
@@ -30,6 +33,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let get_boards_uc = Arc::new(GetBoardsUseCase::new(repo.clone()));
     let get_backlog_uc = Arc::new(GetBacklogUseCase::new(repo.clone()));
     let add_worklog_uc = Arc::new(AddWorklogUseCase::new(repo.clone()));
+    let get_worklogs_uc = Arc::new(GetWorklogsUseCase::new(repo.clone()));
+    let update_worklog_uc = Arc::new(UpdateWorklogUseCase::new(repo.clone()));
+    let delete_worklog_uc = Arc::new(DeleteWorklogUseCase::new(repo.clone()));
 
     // 3. UI Init
     let mut app = App::new();
@@ -66,9 +72,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                             // Handle worklog submission
                             if matches!(action, Action::SubmitWorklog) {
-                                handlers::handle_worklog_submission(
+                                if app.worklog_being_edited.is_some() {
+                                    handlers::handle_update_worklog(
+                                        &app,
+                                        update_worklog_uc.clone(),
+                                        get_worklogs_uc.clone(),
+                                        action_tx.clone(),
+                                    );
+                                } else {
+                                    handlers::handle_worklog_submission(
+                                        &app,
+                                        add_worklog_uc.clone(),
+                                        action_tx.clone(),
+                                    );
+                                }
+                            }
+
+                            // Handle load worklogs
+                            if let Action::LoadWorklogs(issue_key) = &action {
+                                handlers::handle_load_worklogs(
+                                    issue_key,
+                                    get_worklogs_uc.clone(),
+                                    action_tx.clone(),
+                                );
+                            }
+
+                            // Handle open worklog list modal
+                            if matches!(action, Action::OpenWorklogListModal) {
+                                if let Some(issue) = app.get_selected_issue() {
+                                    handlers::handle_load_worklogs(
+                                        &issue.key,
+                                        get_worklogs_uc.clone(),
+                                        action_tx.clone(),
+                                    );
+                                }
+                            }
+
+                            // Handle delete worklog
+                            if matches!(action, Action::SelectWorklogForDelete) {
+                                handlers::handle_delete_worklog(
                                     &app,
-                                    add_worklog_uc.clone(),
+                                    delete_worklog_uc.clone(),
+                                    get_worklogs_uc.clone(),
                                     action_tx.clone(),
                                 );
                             }

@@ -9,6 +9,7 @@ pub fn from_event(key: KeyEvent, app: &App) -> Option<Action> {
         CurrentScreen::IssueDetail => match_detail_keys(key),
         CurrentScreen::FilterModal => match_filter_modal_keys(key, app),
         CurrentScreen::WorklogModal => match_worklog_modal_keys(key, app),
+        CurrentScreen::WorklogListModal => match_worklog_list_modal_keys(key),
         _ => match_global_keys(key),
     }
 }
@@ -58,6 +59,7 @@ fn match_detail_keys(key: KeyEvent) -> Option<Action> {
         KeyCode::Esc => Some(Action::GoToBacklog),
         KeyCode::Char('q') => Some(Action::Quit),
         KeyCode::Char('w') => Some(Action::OpenWorklogModal),
+        KeyCode::Char('l') => Some(Action::OpenWorklogListModal),
 
         // Scroll
         KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
@@ -117,6 +119,21 @@ fn match_worklog_modal_keys(key: KeyEvent, app: &App) -> Option<Action> {
         }
 
         KeyCode::Backspace => Some(Action::DeleteWorklogChar),
+
+        _ => None,
+    }
+}
+
+fn match_worklog_list_modal_keys(key: KeyEvent) -> Option<Action> {
+    match key.code {
+        KeyCode::Esc => Some(Action::CloseWorklogListModal),
+        KeyCode::Char('q') => Some(Action::Quit),
+
+        KeyCode::Enter | KeyCode::Char('e') => Some(Action::SelectWorklogForEdit),
+        KeyCode::Char('d') => Some(Action::SelectWorklogForDelete),
+
+        KeyCode::Down | KeyCode::Char('j') => Some(Action::SelectNext),
+        KeyCode::Up | KeyCode::Char('k') => Some(Action::SelectPrevious),
 
         _ => None,
     }

@@ -40,6 +40,18 @@ pub struct Worklog {
     pub started_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorklogEntry {
+    pub id: String,
+    pub issue_key: IssueId,
+    pub time_spent_seconds: u64,
+    pub comment: Option<String>,
+    pub started_at: DateTime<Utc>,
+    pub author: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
 /// Assignee filter options for the UI
 #[derive(Debug, Clone, PartialEq)]
 pub enum AssigneeFilter {
