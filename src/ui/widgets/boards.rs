@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::Constraint,
     style::{Color, Modifier, Style},
     text::Text,
     widgets::{Block, Borders, Row, Table, TableState},
-    Frame,
 };
 
 use crate::ui::app::App;
@@ -12,18 +12,21 @@ use crate::ui::app::App;
 pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     if app.boards.is_empty() {
         let empty_rows: Vec<Row> = vec![];
-        let empty = Table::new(empty_rows, [Constraint::Percentage(100)])
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(" Boards (Press 'b' to load) "),
-            );
+        let empty = Table::new(empty_rows, [Constraint::Percentage(100)]).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(" Boards (Press 'b' to load) "),
+        );
         frame.render_widget(empty, area);
         return;
     }
 
     let header = Row::new(vec!["ID", "Nombre", "Proyecto", "Tipo"])
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .bottom_margin(1);
 
     let rows: Vec<Row> = app
@@ -41,10 +44,10 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         .collect();
 
     let widths = [
-        Constraint::Length(8),  // ID
+        Constraint::Length(8),      // ID
         Constraint::Percentage(40), // Nombre
-        Constraint::Length(12), // Proyecto
-        Constraint::Min(15),    // Tipo
+        Constraint::Length(12),     // Proyecto
+        Constraint::Min(15),        // Tipo
     ];
 
     let table = Table::new(rows, widths)

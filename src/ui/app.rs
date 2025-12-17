@@ -1,5 +1,7 @@
-use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter, WorklogEntry};
-use chrono::{Local, Datelike, Timelike};
+use crate::domain::models::{
+    AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter, WorklogEntry,
+};
+use chrono::{Datelike, Local, Timelike};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurrentScreen {
@@ -360,31 +362,59 @@ impl App {
                 match self.worklog_focused_field {
                     WorklogField::Day => {
                         let new_value = (self.worklog_day as u16) * 10 + digit_val as u16;
-                        self.worklog_day = if new_value > 31 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_day = if new_value > 31 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::Month => {
                         let new_value = (self.worklog_month as u16) * 10 + digit_val as u16;
-                        self.worklog_month = if new_value > 12 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_month = if new_value > 12 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::Year => {
-                        let new_value = (self.worklog_year as u32) * 10 + digit_val as u32;
-                        self.worklog_year = if new_value > 9999 { digit_val as u16 } else { new_value as u16 };
+                        let new_value = (self.worklog_year as u32) * 10 + digit_val;
+                        self.worklog_year = if new_value > 9999 {
+                            digit_val as u16
+                        } else {
+                            new_value as u16
+                        };
                     }
                     WorklogField::Hour => {
                         let new_value = (self.worklog_hour as u16) * 10 + digit_val as u16;
-                        self.worklog_hour = if new_value > 23 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_hour = if new_value > 23 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::Minute => {
                         let new_value = (self.worklog_minute as u16) * 10 + digit_val as u16;
-                        self.worklog_minute = if new_value > 59 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_minute = if new_value > 59 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::TimeHours => {
                         let new_value = (self.worklog_time_hours as u16) * 10 + digit_val as u16;
-                        self.worklog_time_hours = if new_value > 99 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_time_hours = if new_value > 99 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::TimeMinutes => {
                         let new_value = (self.worklog_time_minutes as u16) * 10 + digit_val as u16;
-                        self.worklog_time_minutes = if new_value > 59 { digit_val as u8 } else { new_value as u8 };
+                        self.worklog_time_minutes = if new_value > 59 {
+                            digit_val as u8
+                        } else {
+                            new_value as u8
+                        };
                     }
                     WorklogField::Comment => {
                         self.worklog_comment.push(digit);
@@ -398,20 +428,18 @@ impl App {
                 }
             }
 
-            Action::DeleteWorklogChar => {
-                match self.worklog_focused_field {
-                    WorklogField::Day => self.worklog_day /= 10,
-                    WorklogField::Month => self.worklog_month /= 10,
-                    WorklogField::Year => self.worklog_year /= 10,
-                    WorklogField::Hour => self.worklog_hour /= 10,
-                    WorklogField::Minute => self.worklog_minute /= 10,
-                    WorklogField::TimeHours => self.worklog_time_hours /= 10,
-                    WorklogField::TimeMinutes => self.worklog_time_minutes /= 10,
-                    WorklogField::Comment => {
-                        self.worklog_comment.pop();
-                    }
+            Action::DeleteWorklogChar => match self.worklog_focused_field {
+                WorklogField::Day => self.worklog_day /= 10,
+                WorklogField::Month => self.worklog_month /= 10,
+                WorklogField::Year => self.worklog_year /= 10,
+                WorklogField::Hour => self.worklog_hour /= 10,
+                WorklogField::Minute => self.worklog_minute /= 10,
+                WorklogField::TimeHours => self.worklog_time_hours /= 10,
+                WorklogField::TimeMinutes => self.worklog_time_minutes /= 10,
+                WorklogField::Comment => {
+                    self.worklog_comment.pop();
                 }
-            }
+            },
 
             Action::WorklogSubmitted => {
                 let now = Local::now();

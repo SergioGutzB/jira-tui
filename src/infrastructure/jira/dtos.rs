@@ -171,10 +171,8 @@ impl WorklogDto {
                     .into_iter()
                     .filter_map(|block| {
                         block.content.and_then(|content| {
-                            let texts: Vec<String> = content
-                                .into_iter()
-                                .filter_map(|ct| ct.text)
-                                .collect();
+                            let texts: Vec<String> =
+                                content.into_iter().filter_map(|ct| ct.text).collect();
                             if texts.is_empty() {
                                 None
                             } else {

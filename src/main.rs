@@ -98,15 +98,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
 
                             // Handle open worklog list modal
-                            if matches!(action, Action::OpenWorklogListModal) {
-                                if let Some(issue) = app.get_selected_issue() {
+                            if matches!(action, Action::OpenWorklogListModal)
+                                && let Some(issue) = app.get_selected_issue() {
                                     handlers::handle_load_worklogs(
                                         &issue.key,
                                         get_worklogs_uc.clone(),
                                         action_tx.clone(),
                                     );
                                 }
-                            }
 
                             // Handle delete worklog
                             if matches!(action, Action::SelectWorklogForDelete) {

@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use crate::ui::app::{App, WorklogField};
@@ -41,20 +41,30 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         app.worklog_focused_field,
         WorklogField::Day | WorklogField::Month | WorklogField::Year
     );
-    let date_border_color = if date_focused { Color::Yellow } else { Color::White };
+    let date_border_color = if date_focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
 
     let day_style = if app.worklog_focused_field == WorklogField::Day {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let month_style = if app.worklog_focused_field == WorklogField::Month {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let year_style = if app.worklog_focused_field == WorklogField::Year {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
@@ -82,15 +92,23 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         app.worklog_focused_field,
         WorklogField::Hour | WorklogField::Minute
     );
-    let time_border_color = if time_focused { Color::Yellow } else { Color::White };
+    let time_border_color = if time_focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
 
     let hour_style = if app.worklog_focused_field == WorklogField::Hour {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let minute_style = if app.worklog_focused_field == WorklogField::Minute {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
@@ -116,15 +134,23 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
         app.worklog_focused_field,
         WorklogField::TimeHours | WorklogField::TimeMinutes
     );
-    let duration_border_color = if duration_focused { Color::Yellow } else { Color::White };
+    let duration_border_color = if duration_focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
 
     let time_hours_style = if app.worklog_focused_field == WorklogField::TimeHours {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
     let time_minutes_style = if app.worklog_focused_field == WorklogField::TimeMinutes {
-        Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)
+        Style::default()
+            .fg(Color::Yellow)
+            .add_modifier(Modifier::BOLD)
     } else {
         Style::default()
     };
@@ -148,7 +174,11 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     // Comentario
     let comment_focused = app.worklog_focused_field == WorklogField::Comment;
-    let comment_border_color = if comment_focused { Color::Yellow } else { Color::White };
+    let comment_border_color = if comment_focused {
+        Color::Yellow
+    } else {
+        Color::White
+    };
 
     let comment_text = if app.worklog_comment.is_empty() {
         Line::from(vec![Span::styled(

@@ -1,8 +1,8 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 
 use crate::ui::app::{App, CurrentScreen};
@@ -24,7 +24,9 @@ fn render_title(frame: &mut Frame, area: Rect, app: &App) {
     let title_text = match app.current_screen {
         CurrentScreen::BoardsList => " Boards List | 'b' Load | Enter to Select | 'q' Quit ",
         CurrentScreen::Backlog => " Backlog | 'f' Filter | Enter View Details | 'b' Back ",
-        CurrentScreen::IssueDetail => " Issue Details | 'w' Log Time | 'l' List Times | Up/Down Scroll | Esc Back ",
+        CurrentScreen::IssueDetail => {
+            " Issue Details | 'w' Log Time | 'l' List Times | Up/Down Scroll | Esc Back "
+        }
         CurrentScreen::FilterModal => {
             " Filter Modal | Tab to Switch | Left/Right to Change | Enter to Apply "
         }
@@ -61,31 +63,25 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
             widgets::issue_detail::render(frame, area, app);
         }
         CurrentScreen::FilterModal => {
-            if let Some(prev_screen) = &app.previous_screen {
-                match prev_screen {
-                    CurrentScreen::Backlog => widgets::backlog::render(frame, area, app),
-                    _ => {}
-                }
-            }
+            if let Some(prev_screen) = &app.previous_screen
+                && prev_screen == &CurrentScreen::Backlog { widgets::backlog::render(frame, area, app) }
             widgets::filter_modal::render(frame, area, app);
         }
         CurrentScreen::WorklogModal => {
             if let Some(prev_screen) = &app.previous_screen {
                 match prev_screen {
                     CurrentScreen::IssueDetail => widgets::issue_detail::render(frame, area, app),
-                    CurrentScreen::WorklogListModal => widgets::issue_detail::render(frame, area, app),
+                    CurrentScreen::WorklogListModal => {
+                        widgets::issue_detail::render(frame, area, app)
+                    }
                     _ => {}
                 }
             }
             widgets::worklog_modal::render(frame, area, app);
         }
         CurrentScreen::WorklogListModal => {
-            if let Some(prev_screen) = &app.previous_screen {
-                match prev_screen {
-                    CurrentScreen::IssueDetail => widgets::issue_detail::render(frame, area, app),
-                    _ => {}
-                }
-            }
+            if let Some(prev_screen) = &app.previous_screen
+                && prev_screen == &CurrentScreen::IssueDetail { widgets::issue_detail::render(frame, area, app) }
             widgets::worklog_list_modal::render(frame, area, app);
         }
         _ => {

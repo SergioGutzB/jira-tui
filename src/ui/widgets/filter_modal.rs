@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use crate::ui::app::{App, FilterField};
@@ -78,27 +78,21 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
 
     let status_text = Line::from(vec![
         Span::raw(" Estado: "),
-        Span::styled(
-            format!("< {} >", app.filter_status.label()),
-            status_style,
-        ),
+        Span::styled(format!("< {} >", app.filter_status.label()), status_style),
     ]);
 
-    let status_block = Paragraph::new(status_text)
-        .block(Block::default().borders(Borders::ALL).title(" Estado "));
+    let status_block =
+        Paragraph::new(status_text).block(Block::default().borders(Borders::ALL).title(" Estado "));
 
     frame.render_widget(status_block, chunks[1]);
 
     let order_text = Line::from(vec![
         Span::raw(" Ordenar por: "),
-        Span::styled(
-            format!("< {} >", app.filter_order_by.label()),
-            order_style,
-        ),
+        Span::styled(format!("< {} >", app.filter_order_by.label()), order_style),
     ]);
 
-    let order_block = Paragraph::new(order_text)
-        .block(Block::default().borders(Borders::ALL).title(" Orden "));
+    let order_block =
+        Paragraph::new(order_text).block(Block::default().borders(Borders::ALL).title(" Orden "));
 
     frame.render_widget(order_block, chunks[2]);
 

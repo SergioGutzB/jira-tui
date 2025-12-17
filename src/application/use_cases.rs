@@ -63,8 +63,15 @@ impl GetWorklogsUseCase {
         Self { repository }
     }
 
-    pub async fn execute(&self, issue_key: &str, start_at: u64, max_results: u64) -> Result<Paginated<WorklogEntry>> {
-        self.repository.get_worklogs(issue_key, start_at, max_results).await
+    pub async fn execute(
+        &self,
+        issue_key: &str,
+        start_at: u64,
+        max_results: u64,
+    ) -> Result<Paginated<WorklogEntry>> {
+        self.repository
+            .get_worklogs(issue_key, start_at, max_results)
+            .await
     }
 }
 
@@ -78,7 +85,9 @@ impl UpdateWorklogUseCase {
     }
 
     pub async fn execute(&self, issue_key: &str, worklog_id: &str, worklog: Worklog) -> Result<()> {
-        self.repository.update_worklog(issue_key, worklog_id, worklog).await
+        self.repository
+            .update_worklog(issue_key, worklog_id, worklog)
+            .await
     }
 }
 

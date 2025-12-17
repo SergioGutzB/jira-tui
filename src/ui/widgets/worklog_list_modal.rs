@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Text,
     widgets::{Block, Borders, Clear, Paragraph, Row, Table},
-    Frame,
 };
 
 use super::utils::centered_rect;
@@ -31,16 +31,19 @@ fn render_title(frame: &mut Frame, area: Rect, app: &App) {
     let title = if let Some(issue) = app.get_selected_issue() {
         format!(
             " Tiempos Registrados - {} ({}/{}) ",
-            issue.key, app.worklogs.len(), app.total_worklogs
+            issue.key,
+            app.worklogs.len(),
+            app.total_worklogs
         )
     } else {
         " Tiempos Registrados ".to_string()
     };
 
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title(title)
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    let block = Block::default().borders(Borders::ALL).title(title).style(
+        Style::default()
+            .fg(Color::Cyan)
+            .add_modifier(Modifier::BOLD),
+    );
 
     frame.render_widget(block, area);
 }
@@ -56,7 +59,11 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
     }
 
     let header = Row::new(vec!["Fecha/Hora", "Duración", "Autor", "Comentario"])
-        .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        .style(
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
         .bottom_margin(1);
 
     let rows: Vec<Row> = app
@@ -108,9 +115,9 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
         .collect();
 
     let widths = [
-        Constraint::Length(16), // Fecha/Hora
-        Constraint::Length(10), // Duración
-        Constraint::Min(15),    // Autor (adaptive)
+        Constraint::Length(16),     // Fecha/Hora
+        Constraint::Length(10),     // Duración
+        Constraint::Min(15),        // Autor (adaptive)
         Constraint::Percentage(50), // Comentario (takes remaining space)
     ];
 
@@ -123,12 +130,11 @@ fn render_worklog_table(frame: &mut Frame, area: Rect, app: &App) {
 }
 
 fn render_instructions(frame: &mut Frame, area: Rect) {
-    let instructions = Paragraph::new(
-        " ↑/↓ o j/k: Navegar | Enter o 'e': Editar | 'd': Eliminar | Esc: Cerrar ",
-    )
-    .block(Block::default().borders(Borders::ALL))
-    .alignment(Alignment::Center)
-    .style(Style::default().fg(Color::Gray));
+    let instructions =
+        Paragraph::new(" ↑/↓ o j/k: Navegar | Enter o 'e': Editar | 'd': Eliminar | Esc: Cerrar ")
+            .block(Block::default().borders(Borders::ALL))
+            .alignment(Alignment::Center)
+            .style(Style::default().fg(Color::Gray));
 
     frame.render_widget(instructions, area);
 }

@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph, Wrap},
-    Frame,
 };
 
 use crate::domain::models::IssueStatus;
@@ -14,10 +14,7 @@ pub fn render(frame: &mut Frame, area: ratatui::layout::Rect, app: &App) {
     if let Some(issue) = app.get_selected_issue() {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(6),
-                Constraint::Min(1),
-            ])
+            .constraints([Constraint::Length(6), Constraint::Min(1)])
             .split(area);
 
         let status_color = match issue.status {

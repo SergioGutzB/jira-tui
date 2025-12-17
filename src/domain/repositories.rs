@@ -22,8 +22,18 @@ pub trait JiraRepository: Send + Sync {
     ) -> Result<Paginated<Issue>>;
 
     async fn add_worklog(&self, worklog: Worklog) -> Result<()>;
-    async fn get_worklogs(&self, issue_key: &str, start_at: u64, max_results: u64) -> Result<Paginated<WorklogEntry>>;
-    async fn update_worklog(&self, issue_key: &str, worklog_id: &str, worklog: Worklog) -> Result<()>;
+    async fn get_worklogs(
+        &self,
+        issue_key: &str,
+        start_at: u64,
+        max_results: u64,
+    ) -> Result<Paginated<WorklogEntry>>;
+    async fn update_worklog(
+        &self,
+        issue_key: &str,
+        worklog_id: &str,
+        worklog: Worklog,
+    ) -> Result<()>;
     async fn delete_worklog(&self, issue_key: &str, worklog_id: &str) -> Result<()>;
     async fn transition_issue(&self, issue_key: &str, transition_id: &str) -> Result<()>;
 }

@@ -2,7 +2,9 @@ use crate::domain::errors::{AppError, Result};
 use crate::domain::models::{Board, BoardId, Issue, IssueFilter, Paginated, Worklog, WorklogEntry};
 use crate::domain::repositories::JiraRepository;
 use crate::infrastructure::config::JiraConfig;
-use crate::infrastructure::jira::dtos::{BoardResponseDto, IssueSearchResponseDto, WorklogResponseDto};
+use crate::infrastructure::jira::dtos::{
+    BoardResponseDto, IssueSearchResponseDto, WorklogResponseDto,
+};
 use async_trait::async_trait;
 use reqwest::{Client, StatusCode};
 
@@ -149,15 +151,18 @@ impl JiraRepository for JiraClient {
             self.base_url, worklog.issue_key
         );
 
-        let started = worklog.started_at.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+        let started = worklog
+            .started_at
+            .format("%Y-%m-%dT%H:%M:%S%.3f%z")
+            .to_string();
 
         let mut payload = serde_json::json!({
             "timeSpentSeconds": worklog.time_spent_seconds,
             "started": started,
         });
 
-        if let Some(comment_text) = worklog.comment {
-            if !comment_text.is_empty() {
+        if let Some(comment_text) = worklog.comment
+            && !comment_text.is_empty() {
                 payload["comment"] = serde_json::json!({
                     "type": "doc",
                     "version": 1,
@@ -170,10 +175,12 @@ impl JiraRepository for JiraClient {
                     }]
                 });
             }
-        }
 
         log::debug!("Worklog URL: {}", url);
-        log::debug!("Worklog payload: {}", serde_json::to_string_pretty(&payload).unwrap());
+        log::debug!(
+            "Worklog payload: {}",
+            serde_json::to_string_pretty(&payload).unwrap()
+        );
 
         let response = self
             .client
@@ -198,11 +205,13 @@ impl JiraRepository for JiraClient {
         }
     }
 
-    async fn get_worklogs(&self, issue_key: &str, start_at: u64, max_results: u64) -> Result<Paginated<WorklogEntry>> {
-        let url = format!(
-            "{}/rest/api/3/issue/{}/worklog",
-            self.base_url, issue_key
-        );
+    async fn get_worklogs(
+        &self,
+        issue_key: &str,
+        start_at: u64,
+        max_results: u64,
+    ) -> Result<Paginated<WorklogEntry>> {
+        let url = format!("{}/rest/api/3/issue/{}/worklog", self.base_url, issue_key);
 
         let response = self
             .client
@@ -237,10 +246,9 @@ impl JiraRepository for JiraClient {
                 ))
             }
             StatusCode::UNAUTHORIZED => Err(AppError::Unauthorized),
-            StatusCode::NOT_FOUND => Err(AppError::NotFound(format!(
-                "Issue {} not found",
-                issue_key
-            ))),
+            StatusCode::NOT_FOUND => {
+                Err(AppError::NotFound(format!("Issue {} not found", issue_key)))
+            }
             _ => Err(AppError::ApiError(format!(
                 "Failed to get worklogs: {}",
                 response.status()
@@ -248,21 +256,29 @@ impl JiraRepository for JiraClient {
         }
     }
 
-    async fn update_worklog(&self, issue_key: &str, worklog_id: &str, worklog: Worklog) -> Result<()> {
+    async fn update_worklog(
+        &self,
+        issue_key: &str,
+        worklog_id: &str,
+        worklog: Worklog,
+    ) -> Result<()> {
         let url = format!(
             "{}/rest/api/3/issue/{}/worklog/{}",
             self.base_url, issue_key, worklog_id
         );
 
-        let started = worklog.started_at.format("%Y-%m-%dT%H:%M:%S%.3f%z").to_string();
+        let started = worklog
+            .started_at
+            .format("%Y-%m-%dT%H:%M:%S%.3f%z")
+            .to_string();
 
         let mut payload = serde_json::json!({
             "timeSpentSeconds": worklog.time_spent_seconds,
             "started": started,
         });
 
-        if let Some(comment_text) = worklog.comment {
-            if !comment_text.is_empty() {
+        if let Some(comment_text) = worklog.comment
+            && !comment_text.is_empty() {
                 payload["comment"] = serde_json::json!({
                     "type": "doc",
                     "version": 1,
@@ -275,7 +291,6 @@ impl JiraRepository for JiraClient {
                     }]
                 });
             }
-        }
 
         let response = self
             .client

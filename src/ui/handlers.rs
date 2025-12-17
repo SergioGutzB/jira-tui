@@ -1,4 +1,4 @@
-use chrono::{Utc, TimeZone, Local};
+use chrono::{Local, TimeZone, Utc};
 use log::error;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
@@ -89,8 +89,7 @@ pub fn check_infinite_scroll(
         && !app.is_loading
         && app.issues.len() < app.total_issues as usize
         && app.selected_issue_index >= app.issues.len().saturating_sub(2)
-    {
-        if let Some(board_id) = app.current_board_id {
+        && let Some(board_id) = app.current_board_id {
             let start_at = app.issues.len() as u64;
 
             let filter = IssueFilter::from_options(
@@ -108,7 +107,6 @@ pub fn check_infinite_scroll(
                 }
             });
         }
-    }
 }
 
 /// Handles worklog submission by creating a Worklog and sending it to Jira.
@@ -118,7 +116,8 @@ pub fn handle_worklog_submission(
     tx: UnboundedSender<Action>,
 ) {
     if let Some(issue) = app.get_selected_issue() {
-        let total_seconds = (app.worklog_time_hours as u64 * 3600) + (app.worklog_time_minutes as u64 * 60);
+        let total_seconds =
+            (app.worklog_time_hours as u64 * 3600) + (app.worklog_time_minutes as u64 * 60);
 
         if total_seconds == 0 {
             error!("Cannot log 0 time");

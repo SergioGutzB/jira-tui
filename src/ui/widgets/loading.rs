@@ -1,8 +1,8 @@
 use ratatui::{
+    Frame,
     layout::Alignment,
     style::{Color, Style},
     widgets::{Block, Borders, Clear, Paragraph},
-    Frame,
 };
 
 use super::utils::centered_rect;
