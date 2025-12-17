@@ -93,6 +93,37 @@ impl OrderByFilter {
     }
 }
 
+/// Status filter options for the UI
+#[derive(Debug, Clone, PartialEq)]
+pub enum StatusFilter {
+    All,
+    Todo,
+    InProgress,
+    Done,
+}
+
+impl StatusFilter {
+    /// Converts the enum to the JQL status value
+    pub fn to_jql(&self) -> Option<String> {
+        match self {
+            StatusFilter::All => None,
+            StatusFilter::Todo => Some("To Do".to_string()),
+            StatusFilter::InProgress => Some("In Progress".to_string()),
+            StatusFilter::Done => Some("Done".to_string()),
+        }
+    }
+
+    /// Get display label for UI
+    pub fn label(&self) -> &str {
+        match self {
+            StatusFilter::All => "Todos los estados",
+            StatusFilter::Todo => "Por hacer",
+            StatusFilter::InProgress => "En progreso",
+            StatusFilter::Done => "Completado",
+        }
+    }
+}
+
 /// Represents the search criteria for issues.
 #[derive(Debug, Clone, Default)]
 pub struct IssueFilter {
@@ -117,12 +148,12 @@ impl IssueFilter {
     /// Creates a filter from UI-friendly enum options
     pub fn from_options(
         assignee: AssigneeFilter,
-        status: Option<String>,
+        status: StatusFilter,
         order_by: OrderByFilter,
     ) -> Self {
         Self {
             assignee: assignee.to_jql(),
-            status,
+            status: status.to_jql(),
             order_by: Some(order_by.to_jql()),
         }
     }

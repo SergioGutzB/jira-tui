@@ -57,7 +57,7 @@ pub fn handle_filter_application(
     if let Some(board_id) = app.current_board_id {
         let filter = IssueFilter::from_options(
             app.filter_assignee.clone(),
-            None, // Status filter not implemented in UI yet
+            app.filter_status.clone(),
             app.filter_order_by.clone(),
         );
 
@@ -91,7 +91,7 @@ pub fn check_infinite_scroll(
 
             let filter = IssueFilter::from_options(
                 app.filter_assignee.clone(),
-                None,
+                app.filter_status.clone(),
                 app.filter_order_by.clone(),
             );
 

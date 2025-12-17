@@ -1,4 +1,4 @@
-use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated};
+use crate::domain::models::{AssigneeFilter, Board, Issue, OrderByFilter, Paginated, StatusFilter};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum CurrentScreen {
@@ -14,6 +14,7 @@ pub enum CurrentScreen {
 #[derive(Debug, Clone, PartialEq)]
 pub enum FilterField {
     Assignee,
+    Status,
     OrderBy,
 }
 
@@ -40,6 +41,7 @@ pub enum Action {
     CloseFilterModal,
     NextFilterField,
     CycleAssigneeFilter,
+    CycleStatusFilter,
     CycleOrderByFilter,
     ApplyFilter,
 }
@@ -62,6 +64,7 @@ pub struct App {
     pub current_board_id: Option<u64>,
 
     pub filter_assignee: AssigneeFilter,
+    pub filter_status: StatusFilter,
     pub filter_order_by: OrderByFilter,
     pub filter_focused_field: FilterField,
 }
@@ -81,6 +84,7 @@ impl App {
             total_issues: 0,
             current_board_id: None,
             filter_assignee: AssigneeFilter::CurrentUser,
+            filter_status: StatusFilter::All,
             filter_order_by: OrderByFilter::UpdatedDesc,
             filter_focused_field: FilterField::Assignee,
         }
@@ -198,7 +202,8 @@ impl App {
 
             Action::NextFilterField => {
                 self.filter_focused_field = match self.filter_focused_field {
-                    FilterField::Assignee => FilterField::OrderBy,
+                    FilterField::Assignee => FilterField::Status,
+                    FilterField::Status => FilterField::OrderBy,
                     FilterField::OrderBy => FilterField::Assignee,
                 };
             }
@@ -208,6 +213,15 @@ impl App {
                     AssigneeFilter::CurrentUser => AssigneeFilter::Unassigned,
                     AssigneeFilter::Unassigned => AssigneeFilter::All,
                     AssigneeFilter::All => AssigneeFilter::CurrentUser,
+                };
+            }
+
+            Action::CycleStatusFilter => {
+                self.filter_status = match self.filter_status {
+                    StatusFilter::All => StatusFilter::Todo,
+                    StatusFilter::Todo => StatusFilter::InProgress,
+                    StatusFilter::InProgress => StatusFilter::Done,
+                    StatusFilter::Done => StatusFilter::All,
                 };
             }
 

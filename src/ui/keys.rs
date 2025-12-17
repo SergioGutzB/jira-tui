@@ -78,6 +78,7 @@ fn match_filter_modal_keys(key: KeyEvent, app: &App) -> Option<Action> {
         KeyCode::Left | KeyCode::Char('h') | KeyCode::Right | KeyCode::Char('l') => {
             match app.filter_focused_field {
                 FilterField::Assignee => Some(Action::CycleAssigneeFilter),
+                FilterField::Status => Some(Action::CycleStatusFilter),
                 FilterField::OrderBy => Some(Action::CycleOrderByFilter),
             }
         }
