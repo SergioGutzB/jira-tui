@@ -64,7 +64,10 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
         }
         CurrentScreen::FilterModal => {
             if let Some(prev_screen) = &app.previous_screen
-                && prev_screen == &CurrentScreen::Backlog { widgets::backlog::render(frame, area, app) }
+                && prev_screen == &CurrentScreen::Backlog
+            {
+                widgets::backlog::render(frame, area, app)
+            }
             widgets::filter_modal::render(frame, area, app);
         }
         CurrentScreen::WorklogModal => {
@@ -81,7 +84,10 @@ fn render_body(frame: &mut Frame, area: Rect, app: &App) {
         }
         CurrentScreen::WorklogListModal => {
             if let Some(prev_screen) = &app.previous_screen
-                && prev_screen == &CurrentScreen::IssueDetail { widgets::issue_detail::render(frame, area, app) }
+                && prev_screen == &CurrentScreen::IssueDetail
+            {
+                widgets::issue_detail::render(frame, area, app)
+            }
             widgets::worklog_list_modal::render(frame, area, app);
         }
         _ => {

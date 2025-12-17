@@ -1,3 +1,9 @@
+// Allow dead code and unused items for features in development
+#![allow(dead_code)]
+#![allow(unused)]
+#![allow(clippy::wrong_self_convention)]
+#![allow(clippy::module_inception)]
+
 mod application;
 mod domain;
 mod infrastructure;

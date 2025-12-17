@@ -89,24 +89,25 @@ pub fn check_infinite_scroll(
         && !app.is_loading
         && app.issues.len() < app.total_issues as usize
         && app.selected_issue_index >= app.issues.len().saturating_sub(2)
-        && let Some(board_id) = app.current_board_id {
-            let start_at = app.issues.len() as u64;
+        && let Some(board_id) = app.current_board_id
+    {
+        let start_at = app.issues.len() as u64;
 
-            let filter = IssueFilter::from_options(
-                app.filter_assignee.clone(),
-                app.filter_status.clone(),
-                app.filter_order_by.clone(),
-            );
+        let filter = IssueFilter::from_options(
+            app.filter_assignee.clone(),
+            app.filter_status.clone(),
+            app.filter_order_by.clone(),
+        );
 
-            tokio::spawn(async move {
-                match get_backlog_uc.execute(board_id, start_at, 20, filter).await {
-                    Ok(p) => {
-                        let _ = tx.send(Action::IssuesLoaded(p));
-                    }
-                    Err(e) => error!("Pagination error: {}", e),
+        tokio::spawn(async move {
+            match get_backlog_uc.execute(board_id, start_at, 20, filter).await {
+                Ok(p) => {
+                    let _ = tx.send(Action::IssuesLoaded(p));
                 }
-            });
-        }
+                Err(e) => error!("Pagination error: {}", e),
+            }
+        });
+    }
 }
 
 /// Handles worklog submission by creating a Worklog and sending it to Jira.

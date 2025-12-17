@@ -162,19 +162,20 @@ impl JiraRepository for JiraClient {
         });
 
         if let Some(comment_text) = worklog.comment
-            && !comment_text.is_empty() {
-                payload["comment"] = serde_json::json!({
-                    "type": "doc",
-                    "version": 1,
+            && !comment_text.is_empty()
+        {
+            payload["comment"] = serde_json::json!({
+                "type": "doc",
+                "version": 1,
+                "content": [{
+                    "type": "paragraph",
                     "content": [{
-                        "type": "paragraph",
-                        "content": [{
-                            "type": "text",
-                            "text": comment_text
-                        }]
+                        "type": "text",
+                        "text": comment_text
                     }]
-                });
-            }
+                }]
+            });
+        }
 
         log::debug!("Worklog URL: {}", url);
         log::debug!(
@@ -278,19 +279,20 @@ impl JiraRepository for JiraClient {
         });
 
         if let Some(comment_text) = worklog.comment
-            && !comment_text.is_empty() {
-                payload["comment"] = serde_json::json!({
-                    "type": "doc",
-                    "version": 1,
+            && !comment_text.is_empty()
+        {
+            payload["comment"] = serde_json::json!({
+                "type": "doc",
+                "version": 1,
+                "content": [{
+                    "type": "paragraph",
                     "content": [{
-                        "type": "paragraph",
-                        "content": [{
-                            "type": "text",
-                            "text": comment_text
-                        }]
+                        "type": "text",
+                        "text": comment_text
                     }]
-                });
-            }
+                }]
+            });
+        }
 
         let response = self
             .client
