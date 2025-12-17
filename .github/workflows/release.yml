@@ -1,0 +1,131 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: jira-tui
+            asset_name: jira-tui-linux-x86_64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: jira-tui
+            asset_name: jira-tui-linux-x86_64-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: jira-tui
+            asset_name: jira-tui-macos-x86_64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: jira-tui
+            asset_name: jira-tui-macos-aarch64
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install musl tools (Linux musl only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Strip binary (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: strip target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+
+  create-release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p release-assets
+          for dir in artifacts/*; do
+            if [ -d "$dir" ]; then
+              asset_name=$(basename "$dir")
+              cp "$dir/jira-tui" "release-assets/$asset_name"
+              chmod +x "release-assets/$asset_name"
+            fi
+          done
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ contains(github.ref_name, 'beta') || contains(github.ref_name, 'alpha') }}
+          generate_release_notes: true
+          body: |
+            ## Installation
+
+            Download the binary for your platform:
+
+            - **Linux (x86_64)**: `jira-tui-linux-x86_64`
+            - **Linux (musl)**: `jira-tui-linux-x86_64-musl`
+            - **macOS (Intel)**: `jira-tui-macos-x86_64`
+            - **macOS (Apple Silicon)**: `jira-tui-macos-aarch64`
+
+            ### Quick Start
+
+            ```bash
+            # Download (replace with your platform)
+            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/jira-tui-linux-x86_64
+
+            # Make executable
+            chmod +x jira-tui-linux-x86_64
+
+            # Rename (optional)
+            mv jira-tui-linux-x86_64 jira-tui
+
+            # Run
+            ./jira-tui
+            ```
+
+            ### Configuration
+
+            Create a `.env` file with your Jira credentials:
+
+            ```env
+            JIRA_BASE_URL=https://your-domain.atlassian.net
+            JIRA_EMAIL=your-email@example.com
+            JIRA_API_TOKEN=your_api_token
+            ```
+
+            See the [README](https://github.com/${{ github.repository }}#configuration) for more details.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
