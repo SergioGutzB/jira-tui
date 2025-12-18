@@ -94,12 +94,11 @@ fn match_filter_modal_keys(key: KeyEvent, app: &App) -> Option<Action> {
 fn match_worklog_modal_keys(key: KeyEvent, app: &App) -> Option<Action> {
     match key.code {
         KeyCode::Esc => Some(Action::CloseWorklogModal),
-        KeyCode::Char('q') => Some(Action::Quit),
 
         KeyCode::Enter => Some(Action::SubmitWorklog),
 
-        KeyCode::Tab | KeyCode::Down | KeyCode::Char('j') => Some(Action::NextWorklogField),
-        KeyCode::BackTab | KeyCode::Up | KeyCode::Char('k') => Some(Action::NextWorklogField),
+        KeyCode::Tab | KeyCode::Down => Some(Action::NextWorklogField),
+        KeyCode::BackTab | KeyCode::Up => Some(Action::NextWorklogField),
 
         KeyCode::Char(ch) if ch.is_ascii_digit() => {
             if matches!(

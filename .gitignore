@@ -47,6 +47,7 @@ dist/
 out/
 export/
 coverage/
+demos/
 
 #######################################
 # OS-specific
